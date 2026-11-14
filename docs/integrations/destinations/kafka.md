@@ -4,6 +4,10 @@
 
 The Airbyte Kafka destination allows you to sync data to Kafka. Each stream is written to the corresponding Kafka topic.
 
+## Prerequisites
+
+- For Airbyte Open Source users using the [Postgres](https://docs.airbyte.com/integrations/sources/postgres) source connector, [upgrade](https://docs.airbyte.com/operator-guides/upgrading-airbyte/) your Airbyte platform to version `v0.40.0-alpha` or newer and upgrade your Kafka connector to version `0.1.10` or newer
+
 ### Sync overview
 
 #### Output schema
@@ -14,19 +18,20 @@ Currently, this connector only writes data with JSON format. More formats \(e.g.
 
 Each record will contain in its key the uuid assigned by Airbyte, and in the value these 3 fields:
 
-* `_airbyte_ab_id`: a uuid assigned by Airbyte to each event that is processed.
-* `_airbyte_emitted_at`:  a timestamp representing when the event was pulled from the data source.
-* `_airbyte_data`: a json blob representing with the event data.
-* `_airbyte_stream`: the name of each record's stream.
+- `_airbyte_ab_id`: a uuid assigned by Airbyte to each event that is processed.
+- `_airbyte_emitted_at`: a timestamp representing when the event was pulled from the data source.
+- `_airbyte_data`: a json blob representing with the event data.
+- `_airbyte_stream`: the name of each record's stream.
 
-#### Features
+## Supported sync modes
 
-| Feature | Supported?\(Yes/No\) | Notes |
-| :--- | :--- | :--- |
-| Full Refresh Sync | No |  |
-| Incremental - Append Sync | Yes |  |
-| Incremental - Deduped History | No | As this connector does not support dbt, we don't support this sync mode on this destination. |
-| Namespaces | Yes |  |
+| Sync mode | Supported? |
+| :--- | :--- |
+| [Full Refresh - Overwrite](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/full-refresh-overwrite) | No |
+| [Full Refresh - Append](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/full-refresh-append) | Yes |
+| [Full Refresh - Overwrite + Deduped](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/full-refresh-overwrite-deduped) | No |
+| [Incremental Sync - Append](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/incremental-append) | Yes |
+| [Incremental Sync - Append + Deduped](https://docs.airbyte.com/platform/using-airbyte/core-concepts/sync-modes/incremental-append-deduped) | No |
 
 ## Getting started
 
@@ -34,7 +39,7 @@ Each record will contain in its key the uuid assigned by Airbyte, and in the val
 
 To use the Kafka destination, you'll need:
 
-* A Kafka cluster 1.0 or above.
+- A Kafka cluster 1.0 or above.
 
 ### Setup guide
 
@@ -50,7 +55,7 @@ Note that if you choose to use dynamic topic names, you will probably need to en
 
 #### Target topics
 
-You can determine the topics to which messages are written via the `topic_pattern` configuration parameter. Messages can be written to either a hardcoded, pre-defined topic, or dynamically written to different topics based on the [namespace](https://docs.airbyte.io/understanding-airbyte/namespaces) or stream they came from.
+You can determine the topics to which messages are written via the `topic_pattern` configuration parameter. Messages can be written to either a hardcoded, pre-defined topic, or dynamically written to different topics based on the [namespace](https://docs.airbyte.com/understanding-airbyte/namespaces) or stream they came from.
 
 To write all messages to a single hardcoded topic, enter its name in the `topic_pattern` field e.g: setting `topic_pattern` to `my-topic-name` will write all messages from all streams and namespaces to that topic.
 
@@ -64,41 +69,80 @@ If you define output topic dynamically, you might want to enable `auto.create.to
 
 You should now have all the requirements needed to configure Kafka as a destination in the UI. You can configure the following parameters on the Kafka destination \(though many of these are optional or have default values\):
 
-* **Bootstrap servers**
-* **Topic pattern**
-* **Test topic**
-* **Sync producer**
-* **Security protocol**
-* **SASL JAAS config**
-* **SASL mechanism**
-* **Client ID**
-* **ACKs**
-* **Enable idempotence**
-* **Compression type**
-* **Batch size**
-* **Linger ms**
-* **Max in flight requests per connection**
-* **Client DNS lookup**
-* **Buffer memory**
-* **Max request size**
-* **Retries**
-* **Socket connection setup timeout**
-* **Socket connection setup max timeout**
-* **Max block ms**
-* **Request timeout**
-* **Delivery timeout**
-* **Send buffer bytes**
-* **Receive buffer bytes**
+- **Bootstrap servers**
+- **Topic pattern**
+- **Test topic**
+- **Sync producer**
+- **Security protocol**
+- **SASL JAAS config**
+- **SASL mechanism**
+- **Client ID**
+- **ACKs**
+- **Enable idempotence**
+- **Compression type**
+- **Batch size**
+- **Linger ms**
+- **Max in flight requests per connection**
+- **Client DNS lookup**
+- **Buffer memory**
+- **Max request size**
+- **Retries**
+- **Socket connection setup timeout**
+- **Socket connection setup max timeout**
+- **Max block ms**
+- **Request timeout**
+- **Delivery timeout**
+- **Send buffer bytes**
+- **Receive buffer bytes**
 
 More info about this can be found in the [Kafka producer configs documentation site](https://kafka.apache.org/documentation/#producerconfigs).
 
-_NOTE_: Some configurations for SSL are not available yet.
+### Secure connections on Airbyte Cloud
+
+Airbyte Cloud requires TLS encryption for Kafka broker connections. The **Protocol** field offers only **SASL SSL** (`SASL_SSL`), and **SASL Mechanism** offers only `PLAIN`. Connection checks and write setup reject other protocols or mechanisms before creating a Kafka producer, including configurations submitted through the API. The Kafka client uses TLS for the broker connection and does not fall back to plaintext if the TLS handshake fails.
+
+On Airbyte Cloud, **SASL JAAS Config** must contain exactly one `org.apache.kafka.common.security.plain.PlainLoginModule` entry. Missing, malformed, or unsupported JAAS configurations are rejected before connecting to Kafka.
+
+Airbyte Open Source continues to support **PLAINTEXT**, **SASL PLAINTEXT**, and **SASL SSL**, without these Cloud-only restrictions. Custom SSL truststore and client-certificate settings are not exposed by this connector.
+
+#### Confluent Cloud API-key authentication
+
+To configure authentication to a Confluent Cloud Kafka cluster:
+
+1. Set **Bootstrap servers** to your cluster's bootstrap endpoint.
+2. Set **Protocol** to **SASL SSL**.
+3. Set **SASL mechanism** to `PLAIN`.
+4. Set **SASL JAAS config** to the following, replacing the placeholders with your Kafka API key and secret:
+
+   ```text
+   org.apache.kafka.common.security.plain.PlainLoginModule required username="YOUR_KAFKA_API_KEY" password="YOUR_KAFKA_API_SECRET";
+   ```
+
+The API key must have permission to write to the target topics. This destination writes JSON records; it does not provide Avro serialization or Schema Registry integration.
+
+## Namespace support
+
+This destination supports [namespaces](https://docs.airbyte.com/platform/using-airbyte/core-concepts/namespaces). The namespace is incorporated into the topic name via the `{namespace}` variable in the `topic_pattern` configuration.
 
 ## Changelog
 
-| Version | Date | Pull Request | Subject |
-| :--- | :--- | :--- | :--- |
-| 0.1.2 | 2021-09-14 | [\#6040](https://github.com/airbytehq/airbyte/pull/6040) | Change spec.json and config parser |
-| 0.1.1 | 2021-07-30 | [\#5125](https://github.com/airbytehq/airbyte/pull/5125) | Enable `additionalPropertities` in spec.json |
-| 0.1.0 | 2021-07-21 | [\#3746](https://github.com/airbytehq/airbyte/pull/3746) | Initial Release |
+<details>
+  <summary>Expand to review</summary>
 
+| Version | Date       | Pull Request                                             | Subject                                                                        |
+| :------ | :--------- | :------------------------------------------------------- | :----------------------------------------------------------------------------  |
+| 0.1.13  | 2026-11-04 | [91019](https://github.com/airbytehq/airbyte/pull/91019) | Update Java CDK, Kafka libraries and security dependencies. |
+| 0.1.12 | 2026-11-04 | [90997](https://github.com/airbytehq/airbyte/pull/90997) | Enable on Airbyte Cloud with TLS-only Kafka broker connections; avoid logging SASL credentials. |
+| 0.1.11  | 2025-03-28 | [56450](https://github.com/airbytehq/airbyte/pull/56450) | Add support for other SASL Mechanisms when SASL_PLAINTEXT protocol is selected |
+| 0.1.10  | 2022-08-04 | [15287](https://github.com/airbytehq/airbyte/pull/15287) | Update Kafka destination to use outputRecordCollector to properly store state  |
+| 0.1.9   | 2022-06-17 | [13864](https://github.com/airbytehq/airbyte/pull/13864) | Updated stacktrace format for any trace message errors                         |
+| 0.1.7   | 2022-04-19 | [12134](https://github.com/airbytehq/airbyte/pull/12134) | Add PLAIN Auth                                                                 |
+| 0.1.6   | 2022-02-15 | [10186](https://github.com/airbytehq/airbyte/pull/10186) | Add SCRAM-SHA-512 Auth                                                         |
+| 0.1.5   | 2022-02-14 | [10256](https://github.com/airbytehq/airbyte/pull/10256) | Add `-XX:+ExitOnOutOfMemoryError` JVM option                                   |
+| 0.1.4   | 2022-01-31 | [9905](https://github.com/airbytehq/airbyte/pull/9905)   | Fix SASL config read issue                                                     |
+| 0.1.3   | 2021-12-30 | [8809](https://github.com/airbytehq/airbyte/pull/8809)   | Update connector fields title/description                                      |
+| 0.1.2   | 2021-09-14 | [6040](https://github.com/airbytehq/airbyte/pull/6040)   | Change spec.json and config parser                                             |
+| 0.1.1   | 2021-07-30 | [5125](https://github.com/airbytehq/airbyte/pull/5125)   | Enable `additionalPropertities` in spec.json                                   |
+| 0.1.0   | 2021-07-21 | [3746](https://github.com/airbytehq/airbyte/pull/3746)   | Initial Release                                                                |
+
+</details>

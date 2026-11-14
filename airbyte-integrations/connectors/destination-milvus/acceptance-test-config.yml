@@ -1,0 +1,8 @@
+bypass_reason: "Standard-test scenarios not configured: GSM holds a test config for this connector, but no acceptance-test entry lists it"
+acceptance_tests:
+  spec:
+    tests:
+      - spec_path: integration_tests/spec.json
+        backward_compatibility_tests_config:
+          disable_for_version: "0.0.1"
+connector_image: airbyte/destination-milvus:dev

@@ -1,36 +1,27 @@
 plugins {
-    id 'application'
-    id 'airbyte-docker'
-    id 'airbyte-integration-test-java'
+    id 'airbyte-bulk-connector'
+    id "io.airbyte.gradle.docker"
+    id 'airbyte-connector-docker-convention'
 }
 
 application {
-    mainClass = 'io.airbyte.integrations.source.mssql.MssqlSource'
-    applicationDefaultJvmArgs = ['-XX:MaxRAMPercentage=75.0']
+    mainClass = 'io.airbyte.integrations.source.mssql.MsSqlServerSource'
+}
+
+airbyteBulkConnector {
+    core = 'extract'
+    toolkits = ['extract-jdbc', 'extract-cdc']
 }
 
 dependencies {
-    implementation "org.postgresql:postgresql:42.2.18"
+    implementation 'com.microsoft.sqlserver:mssql-jdbc:13.4.0.jre11'
+    implementation 'com.azure:azure-identity:1.18.2'
+    implementation 'io.debezium:debezium-embedded:3.4.3.Final'
+    implementation 'io.debezium:debezium-connector-sqlserver:3.4.3.Final'
+    implementation 'org.apache.commons:commons-lang3:3.18.0'
 
-    implementation project(':airbyte-db:lib')
-    implementation project(':airbyte-integrations:bases:base-java')
-    implementation project(':airbyte-integrations:bases:debezium')
-    implementation project(':airbyte-protocol:models')
-    implementation project(':airbyte-integrations:connectors:source-jdbc')
-    implementation project(':airbyte-integrations:connectors:source-relational-db')
-
-    implementation 'io.debezium:debezium-connector-sqlserver:1.4.2.Final'
-    implementation 'com.microsoft.sqlserver:mssql-jdbc:8.4.1.jre14'
-
-    testImplementation testFixtures(project(':airbyte-integrations:bases:debezium'))
-    testImplementation testFixtures(project(':airbyte-integrations:connectors:source-jdbc'))
-
-    testImplementation 'org.apache.commons:commons-lang3:3.11'
-    testImplementation "org.testcontainers:mssqlserver:1.15.3"
-
-    integrationTestJavaImplementation project(':airbyte-integrations:bases:standard-source-test')
-    integrationTestJavaImplementation project(':airbyte-integrations:connectors:source-mssql')
-
-    implementation files(project(':airbyte-integrations:bases:base-java').airbyteDocker.outputs)
-    integrationTestJavaImplementation files(project(':airbyte-integrations:bases:base-java').airbyteDocker.outputs)
+    // Used directly by src/test (there is no src/testFixtures here); declare it on the test
+    // classpath instead of relying on the KGP < 2.0.10 leak of testFixtures deps into test.
+    testImplementation 'org.testcontainers:mssqlserver:1.21.4'
+    testImplementation("io.mockk:mockk:1.14.11")
 }

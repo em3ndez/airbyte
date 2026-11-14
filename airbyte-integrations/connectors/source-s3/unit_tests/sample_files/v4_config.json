@@ -1,0 +1,14 @@
+{
+  "bucket": "a-bucket",
+  "credentials": {
+    "auth_type": "default_credentials"
+  },
+  "streams": [
+    {
+      "name": "output-stream-name",
+      "format": { "filetype": "csv" },
+      "file_type": "csv",
+      "validation_policy": "Emit Record"
+    }
+  ]
+}

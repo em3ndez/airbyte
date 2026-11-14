@@ -1,51 +1,56 @@
 #
-# Copyright (c) 2021 Airbyte, Inc., all rights reserved.
+# Copyright (c) 2023 Airbyte, Inc., all rights reserved.
 #
 
-import json
-import math
-from unittest import mock
+from unittest.mock import MagicMock
 
-import freezegun
-import pendulum
 import pytest
 import responses
-from airbyte_cdk.models import AirbyteStream, ConfiguredAirbyteCatalog, ConfiguredAirbyteStream
-from source_iterable.api import EmailSend
 from source_iterable.source import SourceIterable
-
-
-@pytest.fixture
-def response_mock():
-    with responses.RequestsMock() as resp_mock:
-        record_js = {"createdAt": "2020"}
-        resp_body = "\n".join([json.dumps(record_js)])
-        responses.add("GET", "https://api.iterable.com/api/export/data.json", body=resp_body)
-        yield resp_mock
+from source_iterable.streams import IterableStream
 
 
 @responses.activate
-@freezegun.freeze_time("2021-01-01")
-def test_stream_correct(response_mock):
-    TEST_START_DATE = "2020"
-    test_catalog = ConfiguredAirbyteCatalog(
-        streams=[
-            ConfiguredAirbyteStream(
-                stream=AirbyteStream(name="email_send", json_schema={}),
-                sync_mode="full_refresh",
-                destination_sync_mode="append",
-            )
-        ]
-    )
-    chunks = math.ceil((pendulum.today() - pendulum.parse(TEST_START_DATE)).days / EmailSend.RANGE_LENGTH_DAYS)
+@pytest.mark.parametrize("body, status, expected_streams", [(b"alpha@gmail.com\nbeta@gmail.com", 200, 44)])
+def test_source_streams(config, body, status, expected_streams):
+    responses.get("https://api.iterable.com/api/lists", json={"lists": [{"id": 1}]})
+    responses.add(responses.GET, "https://api.iterable.com/api/lists/getUsers?listId=1", body=body, status=status)
 
-    source = SourceIterable()
-    records = list(
-        source.read(
-            mock.MagicMock(),
-            {"start_date": TEST_START_DATE, "api_key": "api_key"},
-            test_catalog,
-            None,
-        )
-    )
-    assert len(records) == chunks
+    streams = SourceIterable().streams(config=config)
+
+    assert len(streams) == expected_streams
+
+
+@responses.activate
+@pytest.mark.parametrize(
+    "region, expected_url_base",
+    [
+        pytest.param("US", "https://api.iterable.com/api/", id="us_region"),
+        pytest.param("EU", "https://api.eu.iterable.com/api/", id="eu_region"),
+    ],
+)
+def test_source_streams_region_propagation(config, region, expected_url_base):
+    responses.get(expected_url_base + "lists", json={"lists": [{"id": 1}]})
+    responses.add(responses.GET, expected_url_base + "lists/getUsers?listId=1", body=b"user@example.com", status=200)
+
+    config_with_region = {**config, "region": region}
+    streams = SourceIterable().streams(config=config_with_region)
+
+    python_streams = [s for s in streams if isinstance(s, IterableStream)]
+    assert len(python_streams) > 0
+    for stream in python_streams:
+        assert stream.url_base == expected_url_base, f"{stream.name} has url_base={stream.url_base}, expected {expected_url_base}"
+
+
+@responses.activate
+def test_source_check_connection_failed(config):
+    responses.get("https://api.iterable.com/api/lists", json={}, status=401)
+
+    assert SourceIterable().check_connection(MagicMock(), config=config)[0] is False
+
+
+@responses.activate
+def test_source_check_connection_ok(config):
+    responses.get("https://api.iterable.com/api/lists", json={"lists": [{"id": 1}]})
+
+    assert SourceIterable().check_connection(MagicMock(), config=config) == (True, None)

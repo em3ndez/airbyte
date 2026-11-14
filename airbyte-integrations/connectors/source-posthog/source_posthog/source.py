@@ -1,69 +1,33 @@
 #
-# Copyright (c) 2021 Airbyte, Inc., all rights reserved.
+# Copyright (c) 2023 Airbyte, Inc., all rights reserved.
 #
 
-from typing import Any, List, Mapping, Tuple
+from typing import Any, List, Mapping, Optional
 
-import pendulum
-import requests
-from airbyte_cdk.logger import AirbyteLogger
-from airbyte_cdk.models import SyncMode
-from airbyte_cdk.sources import AbstractSource
-from airbyte_cdk.sources.streams import Stream
-from airbyte_cdk.sources.streams.http.auth import TokenAuthenticator
-
-from .streams import (
-    Annotations,
-    Cohorts,
-    Events,
-    EventsSessions,
-    FeatureFlags,
-    Insights,
-    InsightsPath,
-    InsightsSessions,
-    Persons,
-    PingMe,
-    Trends,
-)
-
-DEFAULT_BASE_URL = "https://app.posthog.com"
+from airbyte_cdk.models import AirbyteStateMessage, ConfiguredAirbyteCatalog
+from airbyte_cdk.sources.declarative.parsers.model_to_component_factory import ModelToComponentFactory
+from airbyte_cdk.sources.declarative.yaml_declarative_source import YamlDeclarativeSource
+from source_posthog.components import PosthogModelToComponentFactory
 
 
-class SourcePosthog(AbstractSource):
-    def check_connection(self, logger: AirbyteLogger, config: Mapping[str, Any]) -> Tuple[bool, Any]:
-        try:
-            _ = pendulum.parse(config["start_date"])
-            authenticator = TokenAuthenticator(token=config["api_key"])
-            base_url = config.get("base_url", DEFAULT_BASE_URL)
+"""
+This file provides the necessary constructs to interpret a provided declarative YAML configuration file into
+source connector.
+"""
 
-            stream = PingMe(authenticator=authenticator, base_url=base_url)
-            records = stream.read_records(sync_mode=SyncMode.full_refresh)
-            _ = next(records)
-            return True, None
-        except Exception as e:
-            if isinstance(e, requests.exceptions.HTTPError) and e.response.status_code == requests.codes.UNAUTHORIZED:
-                return False, f"Please check you api_key. Error: {repr(e)}"
-            return False, repr(e)
 
-    def streams(self, config: Mapping[str, Any]) -> List[Stream]:
-        """
-        event/sessions stream is dynamic. Probably, it contains a list of CURRENT sessions.
-        In Next day session may expire and wont be available via this endpoint.
-        So we need a dynamic load data before tests.
-        This stream was requested to be removed due to this reason.
-        """
-        authenticator = TokenAuthenticator(token=config["api_key"])
-        base_url = config.get("base_url", DEFAULT_BASE_URL)
-
-        return [
-            Annotations(authenticator=authenticator, start_date=config["start_date"], base_url=base_url),
-            Cohorts(authenticator=authenticator, base_url=base_url),
-            Events(authenticator=authenticator, start_date=config["start_date"], base_url=base_url),
-            EventsSessions(authenticator=authenticator, base_url=base_url),
-            FeatureFlags(authenticator=authenticator, base_url=base_url),
-            Insights(authenticator=authenticator, base_url=base_url),
-            InsightsPath(authenticator=authenticator, base_url=base_url),
-            InsightsSessions(authenticator=authenticator, base_url=base_url),
-            Persons(authenticator=authenticator, base_url=base_url),
-            Trends(authenticator=authenticator, base_url=base_url),
-        ]
+# Declarative Source
+class SourcePosthog(YamlDeclarativeSource):
+    def __init__(
+        self,
+        catalog: Optional[ConfiguredAirbyteCatalog] = None,
+        config: Optional[Mapping[str, Any]] = None,
+        state: Optional[List[AirbyteStateMessage]] = None,
+    ):
+        super().__init__(path_to_yaml="manifest.yaml", catalog=catalog, config=config, state=state)
+        # The declarative source creates its component factory internally and offers no way to pass one in.
+        # The factory only adds behavior on top of the CDK one (see PosthogModelToComponentFactory), so switching the
+        # class of the instance keeps the message repository, state manager and catalog it was created with.
+        if type(self._constructor) is not ModelToComponentFactory:
+            raise TypeError(f"Unexpected component factory {type(self._constructor).__name__}")
+        self._constructor.__class__ = PosthogModelToComponentFactory

@@ -1,22 +1,30 @@
 /*
- * Copyright (c) 2021 Airbyte, Inc., all rights reserved.
+ * Copyright (c) 2026 Airbyte, Inc., all rights reserved.
  */
 
 package io.airbyte.integrations.source.oracle;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.collect.ImmutableMap;
+import io.airbyte.cdk.db.factory.DatabaseDriver;
+import io.airbyte.cdk.db.jdbc.JdbcDatabase;
+import io.airbyte.cdk.db.jdbc.JdbcUtils;
+import io.airbyte.cdk.db.jdbc.streaming.AdaptiveStreamingQueryConfig;
+import io.airbyte.cdk.integrations.base.IntegrationRunner;
+import io.airbyte.cdk.integrations.base.Source;
+import io.airbyte.cdk.integrations.base.adaptive.AdaptiveSourceRunner;
+import io.airbyte.cdk.integrations.base.ssh.SshWrappedSource;
+import io.airbyte.cdk.integrations.source.jdbc.AbstractJdbcSource;
+import io.airbyte.cdk.integrations.source.relationaldb.TableInfo;
+import io.airbyte.commons.features.EnvVariableFeatureFlags;
+import io.airbyte.commons.features.FeatureFlags;
 import io.airbyte.commons.json.Jsons;
-import io.airbyte.db.jdbc.JdbcDatabase;
-import io.airbyte.db.jdbc.OracleJdbcStreamingQueryConfiguration;
-import io.airbyte.integrations.base.IntegrationRunner;
-import io.airbyte.integrations.base.Source;
-import io.airbyte.integrations.base.ssh.SshWrappedSource;
-import io.airbyte.integrations.source.jdbc.AbstractJdbcSource;
-import io.airbyte.integrations.source.relationaldb.TableInfo;
 import io.airbyte.protocol.models.CommonField;
+import io.airbyte.protocol.models.v0.ConnectorSpecification;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.sql.JDBCType;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,16 +35,25 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class OracleSource extends AbstractJdbcSource implements Source {
+public class OracleSource extends AbstractJdbcSource<JDBCType> implements Source {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OracleSource.class);
 
-  public static final String DRIVER_CLASS = "oracle.jdbc.OracleDriver";
+  public static final String DRIVER_CLASS = DatabaseDriver.ORACLE.getDriverClassName();
+  private static final int INTERMEDIATE_STATE_EMISSION_FREQUENCY = 10_000;
 
   private List<String> schemas;
+  private final FeatureFlags featureFlags;
 
   private static final String KEY_STORE_FILE_PATH = "clientkeystore.jks";
   private static final String KEY_STORE_PASS = RandomStringUtils.randomAlphanumeric(8);
+
+  private static final String SID = "sid";
+  private static final String SERVICE_NAME = "service_name";
+  private static final String UNRECOGNIZED = "Unrecognized";
+  private static final String CONNECTION_DATA = "connection_data";
+
+  private static final String ORACLE_JDBC_PARAMETER_DELIMITER = ";";
 
   enum Protocol {
     TCP,
@@ -44,11 +61,20 @@ public class OracleSource extends AbstractJdbcSource implements Source {
   }
 
   public OracleSource() {
-    super(DRIVER_CLASS, new OracleJdbcStreamingQueryConfiguration());
+    this(new EnvVariableFeatureFlags());
+  }
+
+  OracleSource(final FeatureFlags featureFlags) {
+    super(DRIVER_CLASS, AdaptiveStreamingQueryConfig::new, new OracleSourceOperations());
+    this.featureFlags = featureFlags;
+  }
+
+  public FeatureFlags getFeatureFlags() {
+    return featureFlags;
   }
 
   public static Source sshWrappedSource() {
-    return new SshWrappedSource(new OracleSource(), List.of("host"), List.of("port"));
+    return new SshWrappedSource(new OracleSource(), JdbcUtils.HOST_LIST_KEY, JdbcUtils.PORT_LIST_KEY);
   }
 
   @Override
@@ -64,35 +90,50 @@ public class OracleSource extends AbstractJdbcSource implements Source {
      */
     additionalParameters.add("oracle.jdbc.useFetchSizeWithLongColumn=true");
 
-    final Protocol protocol = config.has("encryption")
-        ? obtainConnectionProtocol(config.get("encryption"), additionalParameters)
+    final Protocol protocol = config.has(JdbcUtils.ENCRYPTION_KEY)
+        ? obtainConnectionProtocol(config.get(JdbcUtils.ENCRYPTION_KEY), additionalParameters)
         : Protocol.TCP;
-    final String connectionString = String.format(
-        "jdbc:oracle:thin:@(DESCRIPTION=(ADDRESS=(PROTOCOL=%s)(HOST=%s)(PORT=%s))(CONNECT_DATA=(SID=%s)))",
-        protocol,
-        config.get("host").asText(),
-        config.get("port").asText(),
-        config.get("sid").asText());
+    final String connectionString;
+    if (config.has(CONNECTION_DATA)) {
+      final JsonNode connectionData = config.get(CONNECTION_DATA);
+      final String connectionType = connectionData.has("connection_type") ? connectionData.get("connection_type").asText()
+          : UNRECOGNIZED;
+      connectionString = switch (connectionType) {
+        case SERVICE_NAME -> buildConnectionString(config, protocol.toString(), SERVICE_NAME.toUpperCase(),
+            config.get(CONNECTION_DATA).get(SERVICE_NAME).asText());
+        case SID -> buildConnectionString(config, protocol.toString(), SID.toUpperCase(), config.get(CONNECTION_DATA).get(SID).asText());
+        default -> throw new IllegalArgumentException("Unrecognized connection type: " + connectionType);
+      };
+    } else {
+      // To keep backward compatibility with existing connectors which doesn't have connection_data
+      // and use only sid.
+      connectionString = buildConnectionString(config, protocol.toString(), SID.toUpperCase(), config.get(SID).asText());
+    }
 
     final ImmutableMap.Builder<Object, Object> configBuilder = ImmutableMap.builder()
-        .put("username", config.get("username").asText())
-        .put("jdbc_url", connectionString);
+        .put(JdbcUtils.USERNAME_KEY, config.get(JdbcUtils.USERNAME_KEY).asText())
+        .put(JdbcUtils.JDBC_URL_KEY, connectionString);
 
-    if (config.has("password")) {
-      configBuilder.put("password", config.get("password").asText());
+    if (config.has(JdbcUtils.PASSWORD_KEY)) {
+      configBuilder.put(JdbcUtils.PASSWORD_KEY, config.get(JdbcUtils.PASSWORD_KEY).asText());
     }
 
     // Use the upper-cased username by default.
-    schemas = List.of(config.get("username").asText().toUpperCase(Locale.ROOT));
-    if (config.has("schemas") && config.get("schemas").isArray()) {
+    schemas = List.of(config.get(JdbcUtils.USERNAME_KEY).asText().toUpperCase(Locale.ROOT));
+    if (config.has(JdbcUtils.SCHEMAS_KEY) && config.get(JdbcUtils.SCHEMAS_KEY).isArray()) {
       schemas = new ArrayList<>();
-      for (final JsonNode schema : config.get("schemas")) {
+      for (final JsonNode schema : config.get(JdbcUtils.SCHEMAS_KEY)) {
         schemas.add(schema.asText());
       }
     }
+
+    if (config.get(JdbcUtils.JDBC_URL_PARAMS_KEY) != null && !config.get(JdbcUtils.JDBC_URL_PARAMS_KEY).asText().isEmpty()) {
+      additionalParameters.addAll(List.of(config.get(JdbcUtils.JDBC_URL_PARAMS_KEY).asText().split("&")));
+    }
+
     if (!additionalParameters.isEmpty()) {
-      final String connectionParams = String.join(";", additionalParameters);
-      configBuilder.put("connection_properties", connectionParams);
+      final String connectionParams = String.join(ORACLE_JDBC_PARAMETER_DELIMITER, additionalParameters);
+      configBuilder.put(JdbcUtils.CONNECTION_PROPERTIES_KEY, connectionParams);
     }
 
     return Jsons.jsonNode(configBuilder.build());
@@ -128,7 +169,7 @@ public class OracleSource extends AbstractJdbcSource implements Source {
 
   private static void convertAndImportCertificate(final String certificate) throws IOException, InterruptedException {
     final Runtime run = Runtime.getRuntime();
-    try (final PrintWriter out = new PrintWriter("certificate.pem")) {
+    try (final PrintWriter out = new PrintWriter("certificate.pem", StandardCharsets.UTF_8)) {
       out.print(certificate);
     }
     runProcess("openssl x509 -outform der -in certificate.pem -out certificate.der", run);
@@ -138,7 +179,7 @@ public class OracleSource extends AbstractJdbcSource implements Source {
   }
 
   private static void runProcess(final String cmd, final Runtime run) throws IOException, InterruptedException {
-    final Process pr = run.exec(cmd);
+    final Process pr = run.exec(cmd.split(" "));
     if (!pr.waitFor(30, TimeUnit.SECONDS)) {
       pr.destroy();
       throw new RuntimeException("Timeout while executing: " + cmd);
@@ -169,11 +210,46 @@ public class OracleSource extends AbstractJdbcSource implements Source {
     return Set.of();
   }
 
+  @Override
+  protected int getStateEmissionFrequency() {
+    return INTERMEDIATE_STATE_EMISSION_FREQUENCY;
+  }
+
+  @Override
+  public ConnectorSpecification spec() throws Exception {
+    final ConnectorSpecification spec = super.spec();
+    if (cloudDeploymentMode()) {
+      final ConnectorSpecification clonedSpec = Jsons.clone(spec);
+      ((ArrayNode) clonedSpec.getConnectionSpecification().get("required")).add("encryption");
+      // Remove the first item from oneOf, which is the "unencrypted" option.
+      ((ArrayNode) clonedSpec.getConnectionSpecification().get("properties").get("encryption").get("oneOf")).remove(0);
+      return clonedSpec;
+    }
+    return spec;
+  }
+
+  private boolean cloudDeploymentMode() {
+    return AdaptiveSourceRunner.CLOUD_MODE.equalsIgnoreCase(getFeatureFlags().deploymentMode());
+  }
+
   public static void main(final String[] args) throws Exception {
     final Source source = OracleSource.sshWrappedSource();
     LOGGER.info("starting source: {}", OracleSource.class);
     new IntegrationRunner(source).run(args);
     LOGGER.info("completed source: {}", OracleSource.class);
+  }
+
+  private String buildConnectionString(final JsonNode config,
+                                       final String protocol,
+                                       final String connectionTypeName,
+                                       final String connectionTypeValue) {
+    return String.format(
+        "jdbc:oracle:thin:@(DESCRIPTION=(ADDRESS=(PROTOCOL=%s)(HOST=%s)(PORT=%s))(CONNECT_DATA=(%s=%s)))",
+        protocol,
+        config.get(JdbcUtils.HOST_KEY).asText(),
+        config.get(JdbcUtils.PORT_KEY).asText(),
+        connectionTypeName,
+        connectionTypeValue);
   }
 
 }

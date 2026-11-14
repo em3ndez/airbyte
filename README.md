@@ -1,75 +1,82 @@
-# Introduction
+<p align="center">
+  <a href="https://airbyte.com"><img src="https://assets.website-files.com/605e01bc25f7e19a82e74788/624d9c4a375a55100be6b257_Airbyte_logo_color_dark.svg" alt="Airbyte"></a>
+</p>
+<p align="center">
+    <em>Open-source data movement for ELT pipelines and AI agents — from APIs, databases & files to warehouses, lakes, and AI applications</em>
+</p>
+<p align="center">
+<a href="https://github.com/airbytehq/airbyte/stargazers/" target="_blank">
+    <img src="https://img.shields.io/github/stars/airbytehq/airbyte?style=social&label=Star&maxAge=2592000" alt="Test">
+</a>
+<a href="https://github.com/airbytehq/airbyte/releases" target="_blank">
+    <img src="https://img.shields.io/github/v/release/airbytehq/airbyte?color=white" alt="Release">
+</a>
+<a href="https://join.slack.com/t/airbytehq/shared_invite/zt-497lmcwfo-rVj8NkG94vnVZV9H6wIkkg" target="_blank">
+    <img src="https://img.shields.io/badge/slack-join-white.svg?logo=slack" alt="Slack">
+</a>
+<a href="https://www.youtube.com/c/AirbyteHQ/?sub_confirmation=1" target="_blank">
+    <img alt="YouTube Channel Views" src="https://img.shields.io/youtube/channel/views/UCQ_JWEFzs1_INqdhIO3kmrw?style=social">
+</a>
+<a href="https://github.com/airbytehq/airbyte/actions/workflows/gradle.yml" target="_blank">
+    <img src="https://img.shields.io/github/actions/workflow/status/airbytehq/airbyte/gradle.yml?branch=master" alt="Build">
+</a>
+<a href="https://github.com/airbytehq/airbyte/tree/master/docs/project-overview/licenses" target="_blank">
+    <img src="https://img.shields.io/static/v1?label=license&message=MIT&color=white" alt="License">
+</a>
+<a href="https://github.com/airbytehq/airbyte/tree/master/docs/project-overview/licenses" target="_blank">
+    <img src="https://img.shields.io/static/v1?label=license&message=ELv2&color=white" alt="License">
+</a>
+</p>
 
-[![GitHub stars](https://img.shields.io/github/stars/airbytehq/airbyte?style=social&label=Star&maxAge=2592000)](https://GitHub.com/airbytehq/airbyte/stargazers/) [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/airbytehq/airbyte/Airbyte%20CI)](https://github.com/airbytehq/airbyte/actions/workflows/gradle.yml) [![License](https://img.shields.io/static/v1?label=license&message=MIT&color=brightgreen)](https://github.com/airbytehq/airbyte/tree/a9b1c6c0420550ad5069aca66c295223e0d05e27/LICENSE/README.md) [![License](https://img.shields.io/static/v1?label=license&message=ELv2&color=brightgreen)](https://github.com/airbytehq/airbyte/tree/a9b1c6c0420550ad5069aca66c295223e0d05e27/LICENSE/README.md)
+We believe that only an **open-source solution to data movement** can cover the long tail of data sources while empowering data engineers to customize existing connectors. Our ultimate vision is to help you move data from any source to any destination — whether that destination is a data warehouse, a data lake, or an AI agent through the Airbyte MCP. Airbyte provides a [catalog](https://docs.airbyte.com/integrations/) of 700+ connectors for APIs, databases, data warehouses, data lakes, and AI applications.
 
-![](docs/.gitbook/assets/airbyte_new_logo.svg)
+![Airbyte Connections UI](https://github.com/airbytehq/airbyte/assets/38087517/35b01d0b-00bf-407b-87e6-a5cd5cd720b5)
+_Screenshot taken from [Airbyte Cloud](https://cloud.airbyte.com/signup)_.
 
-**Data integration made simple, secure and extensible.**  
-The new open-source standard to sync data from applications, APIs & databases to warehouses, lakes & other destinations.
+### Getting Started
 
-[![](docs/.gitbook/assets/deploy-locally.svg)](docs/deploying-airbyte/local-deployment.md) [![](docs/.gitbook/assets/deploy-on-aws.svg)](docs/deploying-airbyte/on-aws-ec2.md) [![](docs/.gitbook/assets/deploy-on-gcp.svg)](docs/deploying-airbyte/on-gcp-compute-engine.md)
+- **Move and sync data.** Deploy [Airbyte Core](https://docs.airbyte.com/quickstart/deploy-airbyte) or [sign up for Airbyte Cloud](https://cloud.airbyte.com/signup) and follow the [Cloud getting started guide](https://docs.airbyte.com/cloud/getting-started-with-airbyte-cloud). Choose from [700+ connectors](https://docs.airbyte.com/integrations/) for APIs, databases, warehouses, lakes, and other data systems.
 
-![](docs/.gitbook/assets/airbyte-ui-for-your-integration-pipelines.png)
+- **Work with Airbyte from your AI agent through the Airbyte MCP.** Your AI agent (Claude, ChatGPT, Cursor, VS Code Copilot, and many others) can build and manage data pipelines, troubleshoot syncs, read logs, and answer questions about Airbyte. Start with the [overview](https://docs.airbyte.com/platform/airbyte-mcp); for Airbyte Cloud, connect to the hosted server at `https://mcp.airbyte.com/mcp` and sign in with OAuth using the [Cloud setup guide](https://docs.airbyte.com/platform/airbyte-mcp/install). For Airbyte Core deployments, the [self-managed setup](https://docs.airbyte.com/platform/airbyte-mcp/self-managed) runs locally against your deployment's API. See the available [tools](https://docs.airbyte.com/platform/airbyte-mcp/tools).
 
-Airbyte is on a mission to make data integration pipelines a commodity.
+- **Call APIs and search data directly (Airbyte Cloud only).** Through the [context layer](https://docs.airbyte.com/platform/context-layer), AI agents can read live data from supported sources and query supported destinations such as BigQuery and Snowflake without waiting for a sync, and search your data. This is available only in Airbyte Cloud; direct reads are read-only.
 
-* **Maintenance-free connectors you can use in minutes**. Just authenticate your sources and warehouse, and get connectors that adapt to schema and API changes for you.
-* **Building new connectors made trivial.** We make it very easy to add new connectors that you need, using the language of your choice, by offering scheduling and orchestration. 
-* Designed to **cover the long tail of connectors and needs**. Benefit from the community's battle-tested connectors and adapt them to your specific needs.
-* **Your data stays in your cloud**. Have full control over your data, and the costs of your data transfers. 
-* **No more security compliance process** to go through as Airbyte is self-hosted. 
-* **No more pricing indexed on volume**, as cloud-based solutions offer. 
+- **Build connectors and orchestrate pipelines.** Create connectors with the [no-code Connector Builder](https://docs.airbyte.com/connector-development/connector-builder-ui/overview) or [low-code CDK](https://docs.airbyte.com/connector-development/config-based/low-code-cdk-overview), and explore popular use cases in our [tutorials](https://airbyte.com/tutorials). Orchestrate Airbyte syncs with [Airflow](https://docs.airbyte.com/operator-guides/using-the-airflow-airbyte-operator), [Dagster](https://docs.airbyte.com/operator-guides/using-dagster-integration), [Kestra](https://docs.airbyte.com/operator-guides/using-kestra-plugin), or the [Airbyte API](https://reference.airbyte.com/). You can also do this through the Airbyte MCP: your AI agent can publish and update custom connector manifests, run and cancel syncs, and change connection schedules.
 
-Here's a list of our [connectors with their health status](docs/integrations/).
+Try it out yourself with our [demo app](https://demo.airbyte.io/), visit our [full documentation](https://docs.airbyte.com/), and learn more about [recent announcements](https://airbyte.com/blog-categories/company-updates). See our [registry](https://connectors.airbyte.com/files/generated_reports/connector_registry_report.html) for a full list of connectors already available in Airbyte or Airbyte Cloud.
 
-## Quick start
+### Join the Airbyte Community
 
-```bash
-git clone https://github.com/airbytehq/airbyte.git
-cd airbyte
-docker-compose up
-```
+The Airbyte Community can be found in the [Airbyte Community Slack](https://join.slack.com/t/airbytehq/shared_invite/zt-497lmcwfo-rVj8NkG94vnVZV9H6wIkkg), where you can ask questions and voice ideas. You can also ask for help in our [Airbyte Forum](https://github.com/airbytehq/airbyte/discussions). Airbyte's roadmap is publicly viewable on [GitHub](https://github.com/orgs/airbytehq/projects/37/views/1?pane=issue&itemId=26937554).
 
-Now visit [http://localhost:8000](http://localhost:8000)
+For videos and blogs on data engineering and building your data stack, check out Airbyte's [Content Hub](https://airbyte.com/content-hub), [YouTube](https://www.youtube.com/c/AirbyteHQ), and sign up for our [newsletter](https://airbyte.com/newsletter).
 
-Here is a [step-by-step guide](https://github.com/airbytehq/airbyte/tree/e378d40236b6a34e1c1cb481c8952735ec687d88/docs/quickstart/getting-started.md) showing you how to load data from an API into a file, all on your computer.
+### Contributing
 
-## Features
+If you've found a problem with Airbyte, please open a [GitHub issue](https://github.com/airbytehq/airbyte/issues/new/choose). To contribute to Airbyte and see our Code of Conduct, please see the [contributing guide](https://docs.airbyte.com/contributing-to-airbyte/). We have a list of [good first issues](https://github.com/airbytehq/airbyte/labels/contributor-program) that contain bugs that have a relatively limited scope. This is a great place to get started, gain experience, and get familiar with our contribution process.
 
-* **Built for extensibility**: Adapt an existing connector to your needs or build a new one with ease.
-* **Optional normalized schemas**: Entirely customizable, start with raw data or from some suggestion of normalized data.
-* **Full-grade scheduler**: Automate your replications with the frequency you need.
-* **Real-time monitoring**: We log all errors in full detail to help you understand.
-* **Incremental updates**: Automated replications are based on incremental updates to reduce your data transfer costs.
-* **Manual full refresh**: Sometimes, you need to re-sync all your data to start again.
-* **Debugging autonomy**: Modify and debug pipelines as you see fit, without waiting.
+#### PR Permission Requirements
 
-[See more on our website.](https://airbyte.io/features/)
+When submitting a pull request, please ensure that Airbyte maintainers have write access to your branch. This allows us to apply formatting fixes and dependency updates directly, significantly speeding up the review and approval process.
 
-## Contributing
+To enable write access on your PR from Airbyte maintainers, please check the "Allow edits from maintainers" box when submitting from your PR. You must also create your PR from a fork in your **personal GitHub account** rather than an organization account, or else you will not see this option. The requirement to create from your personal fork is based on GitHub's additional security restrictions for PRs created from organization forks. For more information about the GitHub security model, please see the [GitHub documentation page regarding PRs from forks](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/allowing-changes-to-a-pull-request-branch-created-from-a-fork).
 
-We love contributions to Airbyte, big or small.
+For more details on contribution requirements, please see our [contribution workflow documentation](https://docs.airbyte.com/platform/contributing-to-airbyte#standard-contribution-workflow).
 
-See our [Contributing guide](docs/contributing-to-airbyte/) on how to get started. Not sure where to start? We’ve listed some [good first issues](https://github.com/airbytehq/airbyte/labels/good%20first%20issue) to start with. If you have any questions, please open a draft PR or visit our [slack channel](https://github.com/airbytehq/airbyte/tree/a9b1c6c0420550ad5069aca66c295223e0d05e27/slack.airbyte.io) where the core team can help answer your questions.
+### Security
 
-**Note that you are able to create connectors using the language you want, as Airbyte connections run as Docker containers.**
+Airbyte takes security issues very seriously. **Please do not file GitHub issues or post on our public forum for security vulnerabilities**. If you believe you have uncovered a vulnerability, read the vulnerability disclosure policy for the affected product and report it as described on [Report a security vulnerability](https://airbyte.com/security/vdp).
 
-**Also, we will never ask you to maintain your connector. The goal is that the Airbyte team and the community helps maintain it, let's call it crowdsourced maintenance!**
+[Airbyte Enterprise](https://airbyte.com/airbyte-enterprise) also offers additional security features (among others) on top of Airbyte open-source.
 
-## Community support
+### License
 
-For general help using Airbyte, please refer to the official Airbyte documentation. For additional help, you can use one of these channels to ask a question:
+See the [LICENSE](docs/LICENSE) file for licensing information, and our [FAQ](https://docs.airbyte.com/platform/developer-guides/licenses/license-faq) for any questions you may have on that topic.
 
-* [Slack](https://slack.airbyte.io) \(For live discussion with the Community and Airbyte team\)
-* [GitHub](https://github.com/airbytehq/airbyte) \(Bug reports, Contributions\)
-* [Twitter](https://twitter.com/airbytehq) \(Get the news fast\)
-* [Weekly office hours](https://airbyte.io/weekly-office-hours/) \(Live informal 30-minute video call sessions with the Airbyte team\)
+### Thank You
 
-## Roadmap
+Airbyte would not be possible without the support and assistance of other open-source tools and companies! Visit our [thank you page](THANK-YOU.md) to learn more about how we build Airbyte.
 
-Check out our [roadmap](docs/project-overview/roadmap.md) to get informed on what we are currently working on, and what we have in mind for the next weeks, months and years.
-
-## License
-
-See the [LICENSE](docs/project-overview/licenses/) file for licensing information, and our [FAQ](docs/project-overview/licenses/license-faq.md) for any questions you may have on that topic. 
-
+<a href="https://github.com/airbytehq/airbyte/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=airbytehq/airbyte"/>
+</a>

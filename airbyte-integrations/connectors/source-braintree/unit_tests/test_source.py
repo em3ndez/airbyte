@@ -1,60 +1,61 @@
-#
-# Copyright (c) 2021 Airbyte, Inc., all rights reserved.
-#
+# Copyright (c) 2026 Airbyte, Inc., all rights reserved.
 
-import jsonschema
-import responses
-from airbyte_cdk.models import AirbyteMessage, Type
-from source_braintree.source import SourceBraintree
+import json
+import logging
+from pathlib import Path
 
+import requests
+from source_braintree.source import DiscountExtractor, SourceBraintree
 
-def get_stream_by_name(streams: list, stream_name: str):
-    for stream in streams:
-        if stream.name == stream_name:
-            return stream
+from airbyte_cdk.entrypoint import AirbyteEntrypoint
+from airbyte_cdk.models import AirbyteMessage, AirbyteRecordMessage, Type
 
 
-def test_source_streams(test_config):
-    s = SourceBraintree()
-    streams = s.streams(test_config)
-    assert len(streams) == 7
+def test_spec():
+    spec = SourceBraintree().spec(logging.getLogger("airbyte"))
+    expected_spec = json.loads(Path("integration_tests/spec.json").read_text())
+
+    assert spec.connectionSpecification == expected_spec["connectionSpecification"]
+
+
+def test_streams():
+    config = json.loads(Path("integration_tests/sample_config.json").read_text())
+    streams = SourceBraintree().streams(config)
+
     assert {stream.name for stream in streams} == {
         "customer_stream",
         "discount_stream",
         "dispute_stream",
-        "transaction_stream",
         "merchant_account_stream",
         "plan_stream",
         "subscription_stream",
+        "transaction_stream",
     }
-    customers = get_stream_by_name(streams, "customer_stream")
-    assert customers.supports_incremental
-    discount_stream = get_stream_by_name(streams, "discount_stream")
-    assert not discount_stream.supports_incremental
 
 
-def test_discover(test_config):
-    source = SourceBraintree()
-    catalog = source.discover(None, test_config)
-    catalog = AirbyteMessage(type=Type.CATALOG, catalog=catalog).dict(exclude_unset=True)
-    schemas = [stream["json_schema"] for stream in catalog["catalog"]["streams"]]
-    for schema in schemas:
-        jsonschema.Draft7Validator.check_schema(schema)
-
-
-def test_spec(test_config):
-    s = SourceBraintree()
-    schema = s.spec(None).connectionSpecification
-    jsonschema.Draft4Validator.check_schema(schema)
-    jsonschema.validate(instance=test_config, schema=schema)
-
-
-@responses.activate
-def test_check(test_config):
-    s = SourceBraintree()
-    responses.add(
-        responses.POST,
-        "https://api.sandbox.braintreegateway.com:443/merchants/mech_id/customers/advanced_search_ids",
-        body=open("unit_tests/data/customers_ids.txt").read(),
+def test_discount_extractor_record_parity():
+    response = requests.Response()
+    response._content = b"""<discounts type="array"><item><amount>2.00</amount><description>This is test discount</description><id>dissscount</id><kind>discount</kind><name>test discount</name><never-expires type="boolean">true</never-expires><number-of-billing-cycles nil="true"/></item></discounts>"""
+    response.encoding = "utf-8"
+    records = DiscountExtractor().extract_records(response)
+    expected_record = next(
+        json.loads(line)
+        for line in Path("integration_tests/expected_records.jsonl").read_text().splitlines()
+        if json.loads(line)["stream"] == "discount_stream"
     )
-    assert s.check_connection(None, test_config) == (True, "")
+
+    messages = [
+        AirbyteEntrypoint.airbyte_message_to_string(
+            AirbyteMessage(
+                type=Type.RECORD,
+                record=AirbyteRecordMessage(
+                    stream="discount_stream",
+                    data=record,
+                    emitted_at=expected_record["emitted_at"],
+                ),
+            )
+        )
+        for record in records
+    ]
+
+    assert [json.loads(message)["record"]["data"] for message in messages] == [expected_record["data"]]

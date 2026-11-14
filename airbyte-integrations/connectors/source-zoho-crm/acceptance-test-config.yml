@@ -1,0 +1,40 @@
+# See [Connector Acceptance Tests](https://docs.airbyte.com/connector-development/testing-connectors/connector-acceptance-tests-reference)
+# for more information about how to configure these tests
+connector_image: airbyte/source-zoho-crm:dev
+test_strictness_level: "high"
+acceptance_tests:
+  spec:
+    tests:
+      - spec_path: "source_zoho_crm/spec.json"
+  connection:
+    tests:
+      - config_path: "secrets/config.json"
+        status: "succeed"
+      - config_path: "integration_tests/invalid_config.json"
+        # `check` raises while refreshing the token and emits no CONNECTION_STATUS.
+        status: "exception"
+  discovery:
+    tests:
+      - config_path: "secrets/config.json"
+  basic_read:
+    tests:
+      - config_path: "secrets/config.json"
+        empty_streams:
+          - name: incremental_notes_zoho_crm_stream
+            bypass_reason: "no data"
+          - name: incremental_deals_zoho_crm_stream
+            bypass_reason: "no data"
+          - name: incremental_accounts_zoho_crm_stream
+            bypass_reason: "no data"
+          - name: incremental_calls_zoho_crm_stream
+            bypass_reason: "no data"
+  incremental:
+    tests:
+      - config_path: "secrets/config.json"
+        configured_catalog_path: "integration_tests/configured_catalog.json"
+        future_state:
+          future_state_path: "integration_tests/abnormal_state.json"
+  full_refresh:
+    tests:
+      - config_path: "secrets/config.json"
+        configured_catalog_path: "integration_tests/configured_catalog.json"

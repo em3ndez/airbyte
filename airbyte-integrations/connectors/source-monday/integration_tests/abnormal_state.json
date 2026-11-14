@@ -1,5 +1,47 @@
-{
-  "todo-stream-name": {
-    "todo-field-name": "todo-abnormal-value"
+[
+  {
+    "type": "STREAM",
+    "stream": {
+      "stream_descriptor": {
+        "name": "items"
+      },
+      "stream_state": {
+        "updated_at_int": 1699041749,
+        "activity_logs": {
+          "created_at_int": 1699041749
+        }
+      }
+    }
+  },
+  {
+    "type": "STREAM",
+    "stream": {
+      "stream_descriptor": {
+        "name": "boards"
+      },
+      "stream_state": {
+        "use_global_cursor": true,
+        "state": {
+          "updated_at_int": "4070908800"
+        },
+        "lookback_window": 6,
+        "parent_state": {
+          "activity_logs": {
+            "created_at_int": "4070908800"
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "STREAM",
+    "stream": {
+      "stream_descriptor": {
+        "name": "activity_logs"
+      },
+      "stream_state": {
+        "created_at_int": "4070908800"
+      }
+    }
   }
-}
+]

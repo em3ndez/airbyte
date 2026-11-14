@@ -1,6 +1,7 @@
-FROM fishtownanalytics/dbt:0.19.0
+FROM fishtownanalytics/dbt:1.0.0
 COPY --from=airbyte/base-airbyte-protocol-python:0.1.1 /airbyte /airbyte
 
+# Install SSH Tunneling dependencies
 RUN apt-get update && apt-get install -y jq sshpass
 
 WORKDIR /airbyte
@@ -13,13 +14,19 @@ COPY setup.py .
 COPY dbt-project-template/ ./dbt-template/
 COPY dbt-project-template-mysql/* ./dbt-template/
 
+# Install python dependencies
 WORKDIR /airbyte/base_python_structs
-RUN pip install .
 
+# workaround for https://github.com/yaml/pyyaml/issues/601
+# this should be fixed in the airbyte/base-airbyte-protocol-python image
+RUN pip install "Cython<3.0" "pyyaml==5.4" --no-build-isolation
+
+RUN pip install .
 
 WORKDIR /airbyte/normalization_code
 RUN pip install .
-RUN pip install git+https://github.com/dbeatty10/dbt-mysql@96655ea9f7fca7be90c9112ce8ffbb5aac1d3716#egg=dbt-mysql
+RUN pip install dbt-mysql==1.0.0
+
 WORKDIR /airbyte/normalization_code/dbt-template/
 # Download external dbt dependencies
 RUN dbt deps

@@ -1,0 +1,251 @@
+[
+  {
+    "type": "STREAM",
+    "stream": {
+      "stream_state": { "date_modified": "2050-01-01T00:00:00" },
+      "stream_descriptor": { "name": "surveys" }
+    }
+  },
+  {
+    "type": "STREAM",
+    "stream": {
+      "stream_descriptor": {
+        "name": "survey_responses"
+      },
+      "stream_state": {
+        "states": [
+          {
+            "partition": {
+              "survey_id": "306079584"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307785429"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307785444"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307785394"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307785402"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307785408"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307784834"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307785448"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307784863"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307784846"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307784856"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307785388"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307785415"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "510388524"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          }
+        ]
+      }
+    },
+    "data": {
+      "survey_responses": {
+        "states": [
+          {
+            "partition": {
+              "survey_id": "306079584"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307785429"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307785444"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307785394"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307785402"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307785408"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307784834"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307785448"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307784863"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307784846"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307784856"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307785388"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "307785415"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          },
+          {
+            "partition": {
+              "survey_id": "510388524"
+            },
+            "cursor": {
+              "date_modified": "2050-01-01T00:00:00"
+            }
+          }
+        ]
+      }
+    }
+  }
+]

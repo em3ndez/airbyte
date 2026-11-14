@@ -1,21 +1,26 @@
 #
-# Copyright (c) 2021 Airbyte, Inc., all rights reserved.
+# Copyright (c) 2023 Airbyte, Inc., all rights reserved.
 #
-
 
 import csv
 import json
+import re
 from abc import ABC
 from time import sleep
 from typing import Any, Iterable, List, Mapping, MutableMapping, Optional, Tuple
 
 import pendulum
 import requests
+
 from airbyte_cdk.models import SyncMode
-from airbyte_cdk.sources import AbstractSource
+from airbyte_cdk.sources.declarative.exceptions import ReadException
+from airbyte_cdk.sources.declarative.yaml_declarative_source import YamlDeclarativeSource
 from airbyte_cdk.sources.streams import Stream
+from airbyte_cdk.sources.streams.availability_strategy import AvailabilityStrategy
 from airbyte_cdk.sources.streams.http import HttpStream
-from airbyte_cdk.sources.streams.http.auth import Oauth2Authenticator
+from airbyte_cdk.sources.streams.http.requests_native_auth import Oauth2Authenticator
+from airbyte_cdk.utils import AirbyteTracedException
+from airbyte_protocol.models import FailureType
 
 from .utils import STRING_TYPES, clean_string, format_value, to_datetime_str
 
@@ -25,12 +30,19 @@ class MarketoStream(HttpStream, ABC):
     data_field = "result"
     page_size = 300
 
-    def __init__(self, config: Mapping[str, Any], stream_name: str = None, param: Mapping[str, Any] = None, export_id: int = None):
+    def __init__(
+        self,
+        config: Mapping[str, Any],
+        stream_name: str = None,
+        param: Mapping[str, Any] = None,
+        export_id: int = None,
+    ):
         super().__init__(authenticator=config["authenticator"])
         self.config = config
         self.start_date = config["start_date"]
-        self.window_in_days = config["window_in_days"]
-        self._url_base = config["domain_url"]
+        self.end_date = config.get("end_date")
+        self.window_in_days = self._validate_window_in_days(config.get("window_in_days", 30))
+        self._url_base = config["domain_url"].rstrip("/") + "/"
         self.stream_name = stream_name
         self.param = param
         self.export_id = export_id
@@ -39,8 +51,22 @@ class MarketoStream(HttpStream, ABC):
     def url_base(self) -> str:
         return self._url_base
 
+    @property
+    def availability_strategy(self) -> Optional["AvailabilityStrategy"]:
+        return None
+
+    @staticmethod
+    def _validate_window_in_days(window_in_days: int) -> int:
+        if not isinstance(window_in_days, int) or not 1 <= window_in_days <= 31:
+            raise AirbyteTracedException(
+                message='Field "window_in_days" must be an integer from 1 to 31.',
+                internal_message=f"Invalid window_in_days value: {window_in_days!r}.",
+                failure_type=FailureType.config_error,
+            )
+        return window_in_days
+
     def path(self, **kwargs) -> str:
-        return f"/rest/v1/{self.name}.json"
+        return f"rest/v1/{self.name}.json"
 
     def next_page_token(self, response: requests.Response) -> Optional[Mapping[str, Any]]:
         next_page = response.json().get("nextPageToken")
@@ -54,6 +80,9 @@ class MarketoStream(HttpStream, ABC):
             params.update(**next_page_token)
         return params
 
+    def request_kwargs(self, **kwargs) -> Mapping[str, Any]:
+        return {"stream": True, "timeout": (30, 300)}
+
     def parse_response(self, response: requests.Response, stream_state: Mapping[str, Any], **kwargs) -> Iterable[Mapping]:
         data = response.json().get(self.data_field, [])
 
@@ -64,6 +93,10 @@ class MarketoStream(HttpStream, ABC):
 class IncrementalMarketoStream(MarketoStream):
     cursor_field = "createdAt"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._state = {}
+
     def filter_by_state(self, stream_state: Mapping[str, Any] = None, record: Mapping[str, Any] = None) -> Iterable:
         """
         Endpoint does not provide query filtering params, but they provide us
@@ -71,23 +104,34 @@ class IncrementalMarketoStream(MarketoStream):
         during the parsing.
         """
 
-        if not stream_state or record[self.cursor_field] >= stream_state.get(self.cursor_field):
+        if record[self.cursor_field] >= (stream_state or {}).get(self.cursor_field, self.start_date):
             yield record
 
-    def parse_response(self, response: requests.Response, stream_state: Mapping[str, Any], **kwargs) -> Iterable[Mapping]:
+    def parse_response(self, response: requests.Response, stream_state: Mapping[str, Any], **kwargs) -> Iterable[MutableMapping]:
         json_response = response.json().get(self.data_field) or []
 
         for record in json_response:
             yield from self.filter_by_state(stream_state=stream_state, record=record)
 
-    def get_updated_state(self, current_stream_state: MutableMapping[str, Any], latest_record: Mapping[str, Any]) -> Mapping[str, Any]:
-        return {
-            self.cursor_field: max(
-                latest_record.get(self.cursor_field, self.start_date), current_stream_state.get(self.cursor_field, self.start_date)
-            )
-        }
+    @property
+    def state(self):
+        return self._state
 
-    def stream_slices(self, sync_mode, stream_state: Mapping[str, Any] = None, **kwargs) -> Iterable[Optional[Mapping[str, any]]]:
+    @state.setter
+    def state(self, value):
+        self._state = value
+
+    def get_updated_state(
+        self,
+        current_stream_state: MutableMapping[str, Any],
+        latest_record: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        latest_cursor_value = latest_record.get(self.cursor_field, self.start_date) or self.start_date
+        current_cursor_value = current_stream_state.get(self.cursor_field, self.start_date) or self.start_date
+        self._state = {self.cursor_field: max(latest_cursor_value, current_cursor_value)}
+        return self._state
+
+    def stream_slices(self, sync_mode, stream_state: Mapping[str, Any] = None, **kwargs) -> Iterable[Optional[MutableMapping[str, any]]]:
         """
         Override default stream_slices CDK method to provide date_slices as page chunks for data fetch.
         Returns list of dict, example: [{
@@ -102,21 +146,24 @@ class IncrementalMarketoStream(MarketoStream):
         """
 
         start_date = pendulum.parse(self.start_date)
-        end_date = pendulum.now()
 
         # Determine stream_state, if no stream_state we use start_date
         if stream_state:
             start_date = pendulum.parse(stream_state.get(self.cursor_field))
 
         # use the lowest date between start_date and self.end_date, otherwise API fails if start_date is in future
-        start_date = min(start_date, end_date)
+        start_date = min(start_date, pendulum.now())
         date_slices = []
 
-        while start_date <= end_date:
-            # the amount of days for each data-chunk begining from start_date
-            end_date_slice = start_date.add(days=self.window_in_days)
+        end_date = pendulum.parse(self.end_date) if self.end_date else pendulum.now()
+        while start_date < end_date:
+            # the amount of days for each data-chunk beginning from start_date
+            end_date_slice = min(start_date.add(days=self.window_in_days), end_date)
 
-            date_slice = {"startAt": to_datetime_str(start_date), "endAt": to_datetime_str(end_date_slice)}
+            date_slice = {
+                "startAt": to_datetime_str(start_date),
+                "endAt": to_datetime_str(end_date_slice),
+            }
 
             date_slices.append(date_slice)
             start_date = end_date_slice
@@ -133,6 +180,12 @@ class MarketoExportBase(IncrementalMarketoStream):
     # The status is only updated once every 60 seconds
     poll_interval = 60
 
+    # Marketo's Bulk Extract API honors only a single date-range filter per export
+    # job. Subclasses set `filter_field` to the Marketo field that matches their
+    # `cursor_field`, so incremental slices are bounded by the same field used to
+    # advance the cursor.
+    filter_field = "createdAt"
+
     def next_page_token(self, response: requests.Response) -> Optional[Mapping[str, Any]]:
         return None
 
@@ -145,7 +198,10 @@ class MarketoExportBase(IncrementalMarketoStream):
         return {}
 
     def create_export(self, param):
-        return next(MarketoExportCreate(self.config, stream_name=self.stream_name, param=param).read_records(sync_mode=None), {})
+        return next(
+            MarketoExportCreate(self.config, stream_name=self.stream_name, param=param).read_records(sync_mode=None),
+            {},
+        )
 
     def start_export(self, stream_slice):
         return next(
@@ -158,13 +214,23 @@ class MarketoExportBase(IncrementalMarketoStream):
         )
 
     def path(self, stream_slice: Mapping[str, Any] = None, **kwargs) -> str:
-        return f"/bulk/v1/{self.stream_name}/export/{stream_slice['id']}/file.json"
+        return f"bulk/v1/{self.stream_name}/export/{stream_slice['id']}/file.json"
 
-    def stream_slices(self, sync_mode, stream_state: Mapping[str, Any] = None, **kwargs) -> Iterable[Optional[Mapping[str, any]]]:
+    def request_kwargs(
+        self,
+        stream_state: Mapping[str, Any],
+        stream_slice: Mapping[str, Any] = None,
+        next_page_token: Mapping[str, Any] = None,
+    ) -> Mapping[str, Any]:
+        return {"stream": True, "timeout": (30, 300)}
+
+    def stream_slices(
+        self, sync_mode, stream_state: MutableMapping[str, Any] = None, **kwargs
+    ) -> Iterable[Optional[MutableMapping[str, any]]]:
         date_slices = super().stream_slices(sync_mode, stream_state, **kwargs)
 
         for date_slice in date_slices:
-            param = {"fields": [], "filter": {"createdAt": date_slice}}
+            param = {"fields": [], "filter": {self.filter_field: date_slice}}
             param["fields"].extend(self.stream_fields)
             param["filter"].update(self.stream_filter)
 
@@ -184,8 +250,15 @@ class MarketoExportBase(IncrementalMarketoStream):
                 self.start_export(stream_slice)
 
             elif status in ["Cancelled", "Failed"]:
-                # Cancelled and failed exports fail the current sync.
-                raise Exception(status)
+                raise AirbyteTracedException(
+                    message=f'Marketo bulk export job for stream "{self.name}" {status.lower()}.',
+                    internal_message=(
+                        f'Export job {stream_slice.get("id")} for stream "{self.name}" '
+                        f"(date range {stream_slice.get('startAt')} to {stream_slice.get('endAt')}) "
+                        f"entered terminal status: {status}."
+                    ),
+                    failure_type=FailureType.transient_error,
+                )
 
             elif status == "Completed":
                 return True
@@ -202,27 +275,32 @@ class MarketoExportBase(IncrementalMarketoStream):
         :return an iterable containing each record in the response
         """
 
-        list_response = response.text.rstrip("\n").split("\n")
-
-        headers = list_response[0].split(",")
-
+        default_prop = {"type": ["null", "string"]}
         schema = self.get_json_schema()["properties"]
+        response.encoding = "utf-8"
 
-        for values in list_response[1:]:
-            record = {
-                headers[i]: format_value(value, schema[headers[i]])
-                for i, value in enumerate(next(csv.reader([values], skipinitialspace=True)))
-            }
+        # Use delimiter="\n" to avoid str.splitlines() which splits on Unicode
+        # line separators (\u2028, \u2029) that may appear in CJK text fields,
+        # causing CSV column misalignment. See: https://github.com/airbytehq/airbyte/pull/3327
+        response_lines = response.iter_lines(chunk_size=1024, decode_unicode=True, delimiter="\n")
+        stripped_lines = (line.rstrip("\r") for line in response_lines if line)
+        filtered_response_lines = self.filter_null_bytes(stripped_lines)
+        reader = self.csv_rows(filtered_response_lines)
 
-            if "attributes" in headers:
-                attributes_records = {
-                    clean_string(key): format_value(value, schema[clean_string(key)])
-                    for key, value in json.loads(record["attributes"]).items()
-                }
-                record.update(attributes_records)
-                record.pop("attributes")
+        for record in reader:
+            new_record = {**record}
+            attributes = json.loads(new_record.pop("attributes", "{}"))
+            for key, value in attributes.items():
+                key = clean_string(key)
+                new_record[key] = value
 
-            yield record
+            for key, value in new_record.items():
+                if key not in schema:
+                    self.logger.warning("Field '%s' not found in stream '%s' spec", key, self.name)
+                prop = schema.get(key, default_prop)
+                value = format_value(value, prop)
+                new_record[key] = value
+            yield new_record
 
     def read_records(
         self,
@@ -233,6 +311,33 @@ class MarketoExportBase(IncrementalMarketoStream):
     ) -> Iterable[Mapping[str, Any]]:
         self.sleep_till_export_completed(stream_slice)
         return super().read_records(sync_mode, cursor_field, stream_slice, stream_state)
+
+    def filter_null_bytes(self, response_lines: Iterable[str]) -> Iterable[str]:
+        for line in response_lines:
+            res = line.replace("\x00", "")
+            if len(res) < len(line):
+                self.logger.warning(
+                    "Filter 'null' bytes from string, size reduced %d -> %d chars",
+                    len(line),
+                    len(res),
+                )
+            yield res
+
+    @staticmethod
+    def csv_rows(lines: Iterable[str]) -> Iterable[Mapping]:
+        reader = csv.reader(lines)
+        headers = None
+        for row in reader:
+            if headers is None:
+                headers = row
+            else:
+                if len(row) != len(headers):
+                    raise AirbyteTracedException(
+                        message="CSV row column count does not match header column count.",
+                        internal_message=f"CSV parse error at row {reader.line_num}: expected {len(headers)} columns, got {len(row)}.",
+                        failure_type=FailureType.system_error,
+                    )
+                yield dict(zip(headers, row))
 
 
 class MarketoExportCreate(MarketoStream):
@@ -252,7 +357,31 @@ class MarketoExportCreate(MarketoStream):
     http_method = "POST"
 
     def path(self, **kwargs) -> str:
-        return f"/bulk/v1/{self.stream_name}/export/create.json"
+        return f"bulk/v1/{self.stream_name}/export/create.json"
+
+    def should_retry(self, response: requests.Response) -> bool:
+        if response.status_code == 429 or 500 <= response.status_code < 600:
+            return True
+        if errors := response.json().get("errors"):
+            if errors[0].get("code") == "1029" and re.match("Export daily quota \d+MB exceeded", errors[0].get("message")):
+                message = "Daily limit for job extractions has been reached (resets daily at 12:00AM CST)."
+                raise AirbyteTracedException(
+                    internal_message=response.text,
+                    message=message,
+                    failure_type=FailureType.config_error,
+                )
+        result = response.json().get("result")
+        if not result:
+            self.logger.warning(
+                "No 'result' in export create response, retrying. Response: %s",
+                response.text[:500],
+            )
+            return True
+        status, export_id = result[0].get("status", "").lower(), result[0].get("exportId")
+        if status != "created" or not export_id:
+            self.logger.warning(f"Failed to create export job! Status is {status}!")
+            return True
+        return False
 
     def request_body_json(self, **kwargs) -> Optional[Mapping]:
         params = {"format": "CSV"}
@@ -280,7 +409,7 @@ class MarketoExportStart(MarketoStream):
     http_method = "POST"
 
     def path(self, **kwargs) -> str:
-        return f"/bulk/v1/{self.stream_name}/export/{self.export_id}/enqueue.json"
+        return f"bulk/v1/{self.stream_name}/export/{self.export_id}/enqueue.json"
 
 
 class MarketoExportStatus(MarketoStream):
@@ -290,33 +419,153 @@ class MarketoExportStatus(MarketoStream):
     """
 
     def path(self, **kwargs) -> str:
-        return f"/bulk/v1/{self.stream_name}/export/{self.export_id}/status.json"
+        return f"bulk/v1/{self.stream_name}/export/{self.export_id}/status.json"
 
     def parse_response(self, response: requests.Response, **kwargs) -> List[str]:
-        return [response.json()[self.data_field][0]["status"]]
+        result = response.json().get(self.data_field)
+        if not result:
+            raise Exception(
+                f"Unexpected response from export status endpoint: '{self.data_field}' key missing. Response: {response.text[:500]}"
+            )
+        return [result[0]["status"]]
 
 
 class Leads(MarketoExportBase):
     """
-    Return list of all leeds.
-    API Docs: http://developers.marketo.com/rest-api/bulk-extract/bulk-lead-extract/
+    Return list of all leads with dynamic schema including custom fields.
+    API Docs: https://developers.marketo.com/rest-api/bulk-extract/bulk-lead-extract/
     """
 
     cursor_field = "updatedAt"
+    # Filter leads by `updatedAt` so that updates to pre-existing leads are
+    # captured by incremental syncs. Marketo's Bulk Lead Extract honors only a
+    # single filter per export, so the filter field must match the cursor.
+    filter_field = "updatedAt"
 
     def __init__(self, config: Mapping[str, Any]):
         super().__init__(config, self.name)
+        self._available_fields: Optional[Mapping[str, str]] = None
+        self._schema = None
+
+    def _get_available_fields(self) -> Mapping[str, str]:
+        """Return a mapping of field_name -> marketo_data_type from the describe endpoint.
+
+        Results are cached to avoid redundant API calls.  Returns an empty dict
+        on request failures (HTTP errors, network issues, malformed responses)
+        so that callers can fall back to the static schema gracefully.
+        """
+        if self._available_fields is None:
+            try:
+                resp = self._session.get(
+                    f"{self._url_base}rest/v1/leads/describe.json",
+                    headers=self._session.auth.get_auth_header(),
+                )
+                resp.raise_for_status()
+                fields = {}
+                for record in resp.json().get("result", []):
+                    rest = record.get("rest")
+                    if rest and "name" in rest:
+                        fields[rest["name"]] = record.get("dataType", "string")
+                self._available_fields = fields
+            except (requests.RequestException, ValueError):
+                self.logger.warning("leads/describe.json request failed, falling back to static schema")
+                self._available_fields = {}
+        return self._available_fields
 
     @property
     def stream_fields(self):
-        return list(self.get_json_schema()["properties"].keys())
+        """Return the list of fields for bulk export requests.
+
+        Only fields confirmed by the describe endpoint are safe to request in
+        the bulk export — Marketo rejects fields that exist in the static
+        schema but not in a particular instance (API error 1003).
+
+        When the user has selected specific fields via the configured catalog,
+        those selections are intersected with describe-confirmed fields so
+        that only valid, user-requested fields are exported.
+        """
+        available = self._get_available_fields()
+
+        if self.configured_json_schema and self.configured_json_schema.get("properties"):
+            configured_fields = list(self.configured_json_schema["properties"].keys())
+            if available:
+                # Intersect: only request fields the user selected AND that
+                # actually exist in this Marketo instance.
+                available_set = set(available.keys())
+                return [f for f in configured_fields if f in available_set]
+            return configured_fields
+
+        if available:
+            return list(available.keys())
+
+        # Fallback to static schema field names if describe endpoint is unavailable
+        return list(super().get_json_schema()["properties"].keys())
+
+    def get_json_schema(self) -> Mapping[str, Any]:
+        if self._schema is not None:
+            return self._schema
+
+        # Start with the full static schema — all standard fields are always
+        # present in the schema so downstream consumers see a consistent shape.
+        static_schema = super().get_json_schema()
+        properties = dict(static_schema.get("properties", {}))
+
+        available = self._get_available_fields()
+        if not available:
+            # Describe endpoint failed; fall back to the static schema so the
+            # connector can still run (with standard fields only).
+            self._schema = static_schema
+            return self._schema
+
+        # Append custom fields discovered from the describe endpoint.
+        # Static schema properties are kept as-is; only new fields are added.
+        for field_name, data_type in available.items():
+            if field_name not in properties:
+                properties[field_name] = self._map_marketo_type(data_type)
+
+        self._schema = {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": ["null", "object"],
+            "additionalProperties": True,
+            "properties": properties,
+        }
+        return self._schema
+
+    @staticmethod
+    def _map_marketo_type(data_type: str) -> Mapping[str, Any]:
+        """Map a Marketo field data type to a JSON Schema type definition."""
+        if data_type == "date":
+            field_schema = {"type": "string", "format": "date"}
+        elif data_type == "datetime":
+            field_schema = {"type": "string", "format": "date-time"}
+        elif data_type in ("integer", "percent", "score"):
+            field_schema = {"type": "integer"}
+        elif data_type in ("float", "currency"):
+            field_schema = {"type": "number"}
+        elif data_type == "boolean":
+            field_schema = {"type": "boolean"}
+        elif data_type in STRING_TYPES:
+            field_schema = {"type": "string"}
+        elif data_type == "array":
+            field_schema = {
+                "type": "array",
+                "items": {"type": ["integer", "number", "string", "null"]},
+            }
+        else:
+            field_schema = {"type": "string"}
+
+        # Make all fields nullable
+        if isinstance(field_schema.get("type"), str):
+            field_schema["type"] = [field_schema["type"], "null"]
+
+        return field_schema
 
 
 class Activities(MarketoExportBase):
     """
     Base class for all the activities streams,
     provides functionality for dynamically created classes as streams of data.
-    API Docs: http://developers.marketo.com/rest-api/bulk-extract/bulk-activity-extract/
+    API Docs: https://developers.marketo.com/rest-api/bulk-extract/bulk-activity-extract/
     """
 
     primary_key = "marketoGUID"
@@ -336,19 +585,17 @@ class Activities(MarketoExportBase):
             "activityDate": {"type": ["null", "string"], "format": "date-time"},
             "activityTypeId": {"type": ["null", "integer"]},
             "campaignId": {"type": ["null", "integer"]},
-            "attributes": {"type": ["null", "string"]},
+            "primaryAttributeValueId": {"type": ["null", "string"]},
+            "primaryAttributeValue": {"type": ["null", "string"]},
         }
-
-        if "primaryAttribute" in self.activity:
-            properties["primaryAttributeValue"] = {"type": ["null", "string"]}
-            properties["primaryAttributeName"] = {"type": ["null", "string"]}
-            properties["primaryAttributeValueId"] = {"type": ["null", "string"]}
 
         if "attributes" in self.activity:
             for attr in self.activity["attributes"]:
                 attr_name = clean_string(attr["name"])
 
-                if attr["dataType"] in ["datetime", "date"]:
+                if attr["dataType"] == "date":
+                    field_schema = {"type": "string", "format": "date"}
+                elif attr["dataType"] == "datetime":
                     field_schema = {"type": "string", "format": "date-time"}
                 elif attr["dataType"] in ["integer", "percent", "score"]:
                     field_schema = {"type": "integer"}
@@ -359,7 +606,10 @@ class Activities(MarketoExportBase):
                 elif attr["dataType"] in STRING_TYPES:
                     field_schema = {"type": "string"}
                 elif attr["dataType"] in ["array"]:
-                    field_schema = {"type": "array", "items": {"type": ["integer", "number", "string", "null"]}}
+                    field_schema = {
+                        "type": "array",
+                        "items": {"type": ["integer", "number", "string", "null"]},
+                    }
                 else:
                     field_schema = {"type": "string"}
 
@@ -370,87 +620,11 @@ class Activities(MarketoExportBase):
         schema = {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": ["null", "object"],
-            "additionalProperties": False,
+            "additionalProperties": True,
             "properties": properties,
         }
 
         return schema
-
-
-class ActivityTypes(MarketoStream):
-    """
-    Return list of all activity types.
-    API Docs: http://developers.marketo.com/rest-api/lead-database/activities/#describe
-    """
-
-    def path(self, stream_slice: Mapping[str, Any] = None, **kwargs) -> str:
-        return "/rest/v1/activities/types.json"
-
-
-class Programs(IncrementalMarketoStream):
-    """
-    Return list of all programs.
-    API Docs: http://developers.marketo.com/rest-api/assets/programs/#by_date_range
-    """
-
-    cursor_field = "updatedAt"
-    page_size = 200
-
-    def __init__(self, config: Mapping[str, Any]):
-        super().__init__(config)
-        self.offset = 0
-
-    def path(self, **kwargs) -> str:
-        return f"/rest/asset/v1/{self.name}.json"
-
-    def next_page_token(self, response: requests.Response) -> Optional[Mapping[str, Any]]:
-        data = response.json().get(self.data_field)
-
-        if data:
-            self.offset += self.page_size + 1
-            return {"offset": self.offset}
-
-    def request_params(
-        self,
-        stream_state: Mapping[str, Any],
-        stream_slice: Mapping[str, Any] = None,
-        next_page_token: Mapping[str, Any] = None,
-    ) -> MutableMapping[str, Any]:
-        """
-        Programs are queryable via their updatedAt time but require and
-        end date as well. As there is no max time range for the query,
-        query from the bookmark value until current.
-        """
-
-        params = super().request_params(next_page_token, stream_state=stream_state, stream_slice=stream_slice)
-        params.update(
-            {
-                "maxReturn": self.page_size,
-                "earliestUpdatedAt": stream_slice["startAt"],
-                "latestUpdatedAt": stream_slice["endAt"],
-            }
-        )
-
-        return params
-
-    def parse_response(self, response: requests.Response, stream_state: Mapping[str, Any], **kwargs) -> Iterable[Mapping]:
-        for record in super().parse_response(response, stream_state, **kwargs):
-            record["updatedAt"] = record["updatedAt"][:-5]  # delete +00:00 part from the end of updatedAt
-            yield record
-
-
-class Campaigns(IncrementalMarketoStream):
-    """
-    Return list of all campaigns.
-    API Docs: http://developers.marketo.com/rest-api/endpoint-reference/lead-database-endpoint-reference/#!/Campaigns/getCampaignsUsingGET
-    """
-
-
-class Lists(IncrementalMarketoStream):
-    """
-    Return list of all lists.
-    API Docs: http://developers.marketo.com/rest-api/endpoint-reference/lead-database-endpoint-reference/#!/Static_Lists/getListsUsingGET
-    """
 
 
 class MarketoAuthenticator(Oauth2Authenticator):
@@ -465,8 +639,8 @@ class MarketoAuthenticator(Oauth2Authenticator):
     def get_refresh_request_params(self) -> Mapping[str, Any]:
         payload: MutableMapping[str, Any] = {
             "grant_type": "client_credentials",
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
+            "client_id": self.get_client_id(),
+            "client_secret": self.get_client_secret(),
         }
 
         return payload
@@ -476,7 +650,11 @@ class MarketoAuthenticator(Oauth2Authenticator):
         Returns a tuple of (access_token, token_lifespan_in_seconds)
         """
         try:
-            response = requests.request(method="GET", url=self.token_refresh_endpoint, params=self.get_refresh_request_params())
+            response = requests.request(
+                method="GET",
+                url=self.get_token_refresh_endpoint(),
+                params=self.get_refresh_request_params(),
+            )
             response.raise_for_status()
             response_json = response.json()
             return response_json["access_token"], response_json["expires_in"]
@@ -484,41 +662,34 @@ class MarketoAuthenticator(Oauth2Authenticator):
             raise Exception(f"Error while refreshing access token: {e}") from e
 
 
-class SourceMarketo(AbstractSource):
+class SourceMarketo(YamlDeclarativeSource):
     """
-    Source Marketo fetch data of personalized multi-channel programs and campaigns to prospects and customers.
+    Source Marketo fetch data of personalized multichannel programs and campaigns to prospects and customers.
     """
 
-    def check_connection(self, logger, config) -> Tuple[bool, any]:
-        """
-        Testing connection availability for the connector by granting the credentials.
-        """
+    def __init__(self) -> None:
+        super().__init__(**{"path_to_yaml": "manifest.yaml"})
 
-        try:
-            url = f"{config['domain_url']}/rest/v1/leads/describe"
-
-            authenticator = MarketoAuthenticator(config)
-
-            session = requests.get(url, headers=authenticator.get_auth_header())
-            session.raise_for_status()
-
-            return True, None
-        except requests.exceptions.RequestException as e:
-            return False, e
+    def _get_declarative_streams(self, config: Mapping[str, Any]) -> List[Stream]:
+        return super().streams(config)
 
     def streams(self, config: Mapping[str, Any]) -> List[Stream]:
         config["authenticator"] = MarketoAuthenticator(config)
 
-        streams = [ActivityTypes(config), Campaigns(config), Leads(config), Lists(config), Programs(config)]
+        streams = self._get_declarative_streams(config)
+        streams.append(Leads(config))
+        activity_types_stream = [stream for stream in streams if stream.name == "activity_types"][0]
 
-        # create dynamically activities by activity type id
-        for activity in ActivityTypes(config).read_records(sync_mode=None):
-            stream_name = f"activities_{clean_string(activity['name'])}"
+        # dynamically create activities by activity type id
+        try:
+            for activity in activity_types_stream.read_records(sync_mode=None):
+                stream_name = f"activities_{clean_string(activity['name'])}"
+                stream_class = type(stream_name, (Activities,), {"activity": activity})
 
-            stream_class = type(stream_name, (Activities,), {"activity": activity})
-
-            # instantiate a stream with config
-            stream_instance = stream_class(config)
-            streams.append(stream_instance)
+                # instantiate a stream with config
+                stream_instance = stream_class(config)
+                streams.append(stream_instance)
+        except ReadException as e:
+            self.logger.warning(f"An error occurred while creating activity streams: {repr(e)}")
 
         return streams

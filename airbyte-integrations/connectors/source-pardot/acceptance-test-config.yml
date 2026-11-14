@@ -1,0 +1,18 @@
+# See [Connector Acceptance Tests](https://docs.airbyte.com/connector-development/testing-connectors/connector-acceptance-tests-reference)
+# for more information about how to configure these tests
+connector_image: airbyte/source-pardot:dev
+acceptance_tests:
+  spec:
+    tests:
+      - spec_path: "manifest.yaml"
+  connection:
+    tests:
+      - config_path: "integration_tests/invalid_config.json"
+        status: "failed"
+      - bypass_reason: "No test config in GSM for this connector"
+  discovery:
+    bypass_reason: "No test config in GSM for this connector"
+  basic_read:
+    bypass_reason: "No test config in GSM for this connector"
+  full_refresh:
+    bypass_reason: "No test config in GSM for this connector"

@@ -1,39 +1,23 @@
 plugins {
-    // Makes building the docker image a dependency of Gradle's "build" command. This way you could run your entire build inside a docker image
-    // via ./gradlew :airbyte-integrations:connectors:source-mongodb:build
-    id 'airbyte-docker'
-    id 'airbyte-standard-source-test-file'
+    id 'airbyte-bulk-connector'
+    id "io.airbyte.gradle.docker"
+    id 'airbyte-connector-docker-convention'
 }
 
-airbyteStandardSourceTestFile {
-    def dbName = "mongo-airbyte-integration-test"
-    prehook {
-        project.exec {
-            def args = ["docker", "run", "--rm",
-                        "--name", dbName,
-                        "-d",
-                        // assign to a weird port number so we don't conflict with any locally running mongo instances
-                        "-p", "27888:27017",
-                        "-e", "MONGO_INITDB_ROOT_USERNAME=user",
-                        "-e", "MONGO_INITDB_ROOT_PASSWORD=password",
-                        "airbyte/mongodb-integration-test-seed:dev"]
-            commandLine args
-        }
-    }
+application {
+    mainClass = 'io.airbyte.integrations.source.mongodb.MongoDbSource'
+}
 
-    posthook {
-        project.exec {
-            commandLine "docker", "stop", dbName
-        }
-    }
-
-    // All these input paths must live inside this connector's directory (or subdirectories)
-    configPath = "integration_tests/valid_config.json"
-    configuredCatalogPath = "integration_tests/configured_catalog.json"
-    specPath = "lib/spec.json"
+airbyteBulkConnector {
+    core = 'extract'
+    toolkits = []
 }
 
 dependencies {
-    implementation files(project(':airbyte-integrations:bases:base-standard-source-test-file').airbyteDocker.outputs)
-}
+    implementation 'org.mongodb:mongodb-driver-sync:5.13.0'
+    // Wire compression: the driver negotiates snappy with the server when this is on the classpath.
+    implementation 'org.xerial.snappy:snappy-java:1.1.10.8'
 
+    testFixturesImplementation 'org.testcontainers:mongodb:1.21.4'
+    testImplementation 'org.testcontainers:mongodb:1.21.4'
+}

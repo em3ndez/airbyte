@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2021 Airbyte, Inc., all rights reserved.
+# Copyright (c) 2023 Airbyte, Inc., all rights reserved.
 #
 
 from decimal import Decimal
@@ -8,6 +8,8 @@ from typing import Any, Dict, Optional, Type
 import pydantic
 from pydantic import BaseModel
 from pydantic.typing import resolve_annotations
+
+from airbyte_cdk.sources.utils.schema_helpers import expand_refs
 
 
 class AllOptional(pydantic.main.ModelMetaclass):
@@ -60,6 +62,12 @@ class CatalogModel(BaseModel, metaclass=AllOptional):
                     elif "$ref" in prop:
                         ref = prop.pop("$ref")
                         prop["oneOf"] = [{"type": "null"}, {"$ref": ref}]
+
+    @classmethod
+    def schema(cls, **kwargs) -> Dict[str, Any]:
+        schema = super().schema(**kwargs)
+        expand_refs(schema)
+        return schema
 
 
 class AddOn(CatalogModel):

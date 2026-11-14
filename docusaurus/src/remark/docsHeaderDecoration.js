@@ -1,0 +1,88 @@
+const { getFromPaths, toAttributes } = require("../helpers/objects");
+const { isDocsPage, getRegistryEntry } = require("./utils");
+const { parseCDKVersion } = require("../scripts/connector_registry");
+const {
+  getDefaultDataWorkersForSource,
+} = require("../scripts/data-worker-consumption");
+const { isAgentConnector } = require("../plugins/agentConnectors");
+const visit = require("unist-util-visit").visit;
+
+/**
+ * Convert a boolean to a string
+ *
+ * Why? Because MDX doesn't support passing boolean values properly
+ */
+const boolToBoolString = (bool) => (bool ? "TRUE" : "FALSE");
+
+const plugin = () => {
+  const transformer = async (ast, vfile) => {
+    const docsPageInfo = isDocsPage(vfile);
+    if (!docsPageInfo.isDocsPage) return;
+
+    const registryEntry = await getRegistryEntry(vfile);
+    if (!registryEntry) return;
+
+    const rawCDKVersion = getFromPaths(
+      registryEntry,
+      "packageInfo.cdk_version",
+    );
+
+    let firstHeading = true;
+
+    visit(ast, "heading", (node) => {
+      if (firstHeading && node.depth === 1 && node.children.length === 1) {
+        const originalTitle = node.children[0].value;
+
+        const syncSuccessRate = getFromPaths(
+          registryEntry,
+          "generated.metrics.[all|cloud|oss].sync_success_rate",
+        );
+        const usageRate = getFromPaths(
+          registryEntry,
+          "generated.metrics.[all|cloud|oss].usage",
+        );
+        const defaultDataWorkers =
+          getDefaultDataWorkersForSource(registryEntry);
+        const lastUpdated = getFromPaths(
+          registryEntry,
+          "generated.source_file_info.metadata_last_modified",
+        );
+
+        const { version, isLatest, url } = parseCDKVersion(rawCDKVersion, null);
+
+        const attrDict = {
+          isOss: registryEntry.is_oss,
+          isCloud: registryEntry.is_cloud,
+          supportLevel: registryEntry.supportLevel,
+          dockerImageTag: registryEntry.dockerImageTag,
+          iconUrl: registryEntry.iconUrl,
+          github_url: registryEntry.github_url,
+          issue_url: registryEntry.issue_url,
+          originalTitle,
+          cdkVersion: version,
+          ...(isLatest !== undefined && {
+            isLatestCDKString: boolToBoolString(isLatest),
+          }),
+          cdkVersionUrl: url,
+          syncSuccessRate,
+          usageRate,
+          defaultDataWorkers,
+          lastUpdated,
+          definitionId: registryEntry.definitionId,
+          isAgent: boolToBoolString(
+            isAgentConnector(registryEntry.dockerRepository),
+          ),
+        };
+
+        firstHeading = false;
+        node.children = [];
+        node.type = "mdxJsxFlowElement";
+        node.name = "HeaderDecoration";
+        node.attributes = toAttributes(attrDict);
+      }
+    });
+  };
+  return transformer;
+};
+
+module.exports = plugin;

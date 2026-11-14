@@ -1,13 +1,14 @@
 #
-# Copyright (c) 2021 Airbyte, Inc., all rights reserved.
+# Copyright (c) 2023 Airbyte, Inc., all rights reserved.
 #
 
+import json
 from http import HTTPStatus
 from unittest.mock import MagicMock
 
 import pendulum
 import pytest
-from source_appsflyer.source import AppsflyerStream
+from source_appsflyer.source import AppsflyerStream, SourceAppsflyer
 
 
 @pytest.fixture
@@ -28,7 +29,6 @@ def test_request_params(patch_base_class):
     stream = AppsflyerStream()
     inputs = {"stream_slice": None, "stream_state": None, "next_page_token": None}
     expected_params = {
-        "api_token": "secret",
         "timezone": timezone,
         "maximum_rows": 1_000_000,
         "from": pendulum.yesterday(timezone).to_date_string(),
@@ -38,14 +38,14 @@ def test_request_params(patch_base_class):
 
 
 @pytest.mark.parametrize(
-    ("main_fields", "return_value", "expected_parsed_object"),
+    ("return_value", "expected_parsed_object"),
     [
-        (("a", "b"), [b"a,b", b"c,d"], [{"a": "c", "b": "d"}]),
-        (("a"), [b"a"], []),
+        ([b"Campaign (c),Date", b"c,d"], [{"campaign": "c", "date": "d"}]),
+        ([b"Date"], []),
     ],
 )
-def test_parse_response(patch_base_class, mocker, main_fields, return_value, expected_parsed_object):
-    mocker.patch.object(AppsflyerStream, "main_fields", main_fields)
+def test_parse_response(patch_base_class, mocker, return_value, expected_parsed_object):
+    mocker.patch.object(AppsflyerStream, "primary_key", "test_primary_key")
     stream = AppsflyerStream()
     response = MagicMock()
     response.iter_lines.return_value = return_value
@@ -67,6 +67,7 @@ def test_http_method(patch_base_class):
         (HTTPStatus.TOO_MANY_REQUESTS, "", True),
         (HTTPStatus.INTERNAL_SERVER_ERROR, "", True),
         (HTTPStatus.BAD_REQUEST, "Your API calls limit has been reached for report type", True),
+        (HTTPStatus.BAD_REQUEST, "You've reached your maximum number of raw data API calls", True),
         (HTTPStatus.FORBIDDEN, "Limit reached for ", True),
     ],
 )
@@ -91,13 +92,76 @@ def test_should_retry(patch_base_class, http_status, response_text, should_retry
             "Your API calls limit has been reached for report type",
             "Midnight",
         ),  # Wait time for raw data is Midnight UTC - Now UTC.
+        (
+            HTTPStatus.BAD_REQUEST,
+            "You've reached your maximum number of raw data API calls",
+            "Midnight",
+        ),  # Alternate raw data rate limit message.
     ],
 )
 def test_backoff_time(patch_base_class, http_status, response_text, expected_backoff_time):
     response_mock = MagicMock()
     response_mock.status_code = http_status
     response_mock.text = response_text
+    response_mock.headers = {}
     stream = AppsflyerStream()
     if expected_backoff_time == "Midnight":
         expected_backoff_time = (pendulum.tomorrow("UTC") - pendulum.now("UTC")).seconds
     assert stream.backoff_time(response_mock) == expected_backoff_time
+
+
+def test_backoff_time_retry_after_header(patch_base_class):
+    """Verify Retry-After header is honored for transient errors."""
+    response_mock = MagicMock()
+    response_mock.status_code = HTTPStatus.TOO_MANY_REQUESTS
+    response_mock.text = ""
+    response_mock.headers = {"Retry-After": "120"}
+    stream = AppsflyerStream()
+    assert stream.backoff_time(response_mock) == 120.0
+
+
+def test_cdk_7x_error_handler_adapter(patch_base_class):
+    """Verify the CDK 7.x adapter correctly detects custom should_retry and backoff_time."""
+    stream = AppsflyerStream()  # __init__ is mocked by patch_base_class
+    assert hasattr(stream, "get_error_handler"), "CDK 7.x should provide get_error_handler via adapter"
+    assert hasattr(stream, "get_backoff_strategy"), "CDK 7.x should provide get_backoff_strategy via adapter"
+    error_handler = stream.get_error_handler()
+    backoff_strategy = stream.get_backoff_strategy()
+    assert error_handler is not None, "CDK 7.x adapter should detect custom should_retry"
+    assert backoff_strategy is not None, "CDK 7.x adapter should detect custom backoff_time"
+
+
+@pytest.mark.parametrize(
+    "original_value,field_schema,expected",
+    [
+        pytest.param(3.14, {"type": ["null", "number"]}, 3.14, id="float_passthrough"),
+        pytest.param(0.0, {"type": ["null", "number"]}, 0.0, id="float_zero"),
+        pytest.param("", {}, None, id="empty_string_to_none"),
+        pytest.param("N/A", {}, None, id="na_to_none"),
+        pytest.param("NULL", {}, None, id="null_to_none"),
+        pytest.param("hello", {}, "hello", id="string_passthrough"),
+        pytest.param(42, {}, 42, id="int_passthrough"),
+    ],
+)
+def test_transform_function_no_decimal(patch_base_class, original_value, field_schema, expected):
+    """Verify transform_function returns JSON-serializable values (no decimal.Decimal)."""
+    transform = AppsflyerStream.transformer._custom_normalizer
+    result = transform(original_value, field_schema)
+    assert result == expected
+    # All results must be JSON-serializable (decimal.Decimal is not with orjson)
+    json.dumps(result)
+
+
+def test_cdk_7x_streams_instantiation():
+    """Verify all 18 streams can be instantiated with CDK 7.x."""
+    source = SourceAppsflyer()
+    config = {
+        "app_id": "testing",
+        "api_token": "secrets",
+        "start_date": "2021-09-13 01:00:00",
+        "timezone": "UTC",
+    }
+    streams = source.streams(config)
+    assert len(streams) == 18
+    for stream in streams:
+        assert stream.url_base == "https://hq1.appsflyer.com/api/"

@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "additionalProperties": false,
+  "additionalProperties": true,
   "properties": {
     "StockLocationId": {
       "type": "string",
@@ -24,78 +24,48 @@
       "description": "Location tag"
     },
     "BinRack": {
-      "type": "string",
+      "type": ["null", "string"],
       "description": "Bin rack"
     },
     "IsWarehouseManaged": {
       "type": ["null", "boolean"],
       "description": "If the location is warehouse managed."
     },
-    "location": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "Address1": {
-          "type": "string",
-          "description": "1st line of address"
-        },
-        "Address2": {
-          "type": "string",
-          "description": "2nd line of address"
-        },
-        "City": {
-          "type": "string",
-          "description": "City"
-        },
-        "County": {
-          "type": "string",
-          "description": "County / Region"
-        },
-        "Country": {
-          "type": "string",
-          "description": "Country"
-        },
-        "ZipCode": {
-          "type": "string",
-          "description": "Postal code"
-        },
-        "IsNotTrackable": {
-          "type": "boolean",
-          "description": "Is the location trackable"
-        },
-        "LocationTag": {
-          "type": "string",
-          "description": "Location tag"
-        },
-        "CountInOrderUntilAcknowledgement": {
-          "type": "boolean",
-          "description": "Count in order"
-        },
-        "FulfilmentCenterDeductStockWhenProcessed": {
-          "type": "boolean",
-          "description": "Fulfilment center and stock will be deducted when order processed"
-        },
-        "IsWarehouseManaged": {
-          "type": "boolean",
-          "description": "Indicates if the location is warehouse managed"
-        },
-        "StockLocationId": {
-          "type": "string",
-          "description": "Location ID"
-        },
-        "LocationName": {
-          "type": "string",
-          "description": "Location name"
-        },
-        "IsFulfillmentCenter": {
-          "type": "boolean",
-          "description": "If location is a fulfillment center"
-        },
-        "StockLocationIntId": {
-          "type": "integer",
-          "description": "Stock location integer id."
-        }
-      }
+    "Address1": {
+      "description": "The first line of the stock location address.",
+      "type": ["null", "string"]
+    },
+    "Address2": {
+      "description": "The second line of the stock location address, if applicable.",
+      "type": ["null", "string"]
+    },
+    "City": {
+      "description": "The city where the stock location is located.",
+      "type": ["null", "string"]
+    },
+    "County": {
+      "description": "The county or region where the stock location is located.",
+      "type": ["null", "string"]
+    },
+    "Country": {
+      "description": "The country where the stock location is situated.",
+      "type": ["null", "string"]
+    },
+    "ZipCode": {
+      "description": "The postal code of the stock location.",
+      "type": ["null", "string"]
+    },
+    "CountInOrderUntilAcknowledgement": {
+      "description": "The flag indicating whether to count stock in order until it is acknowledged.",
+      "type": ["null", "boolean"]
+    },
+    "FulfilmentCenterDeductStockWhenProcessed": {
+      "description": "The flag indicating whether to deduct stock from the fulfilment center when processed.",
+      "type": ["null", "boolean"]
+    },
+    "IsNotTrackable": {
+      "description": "The flag indicating whether the stock location is not trackable.",
+      "type": ["null", "boolean"]
     }
   }
 }

@@ -1,59 +1,38 @@
-#
-# Copyright (c) 2021 Airbyte, Inc., all rights reserved.
-#
+# Copyright (c) 2025 Airbyte, Inc., all rights reserved.
 
-from pytest import fixture
+import sys
+from pathlib import Path
 
-
-@fixture
-def test_config():
-    return {
-        "client_id": "test_client_id",
-        "client_secret": "test_client_secret",
-        "refresh_token": "test_refresh_token",
-        "environment": "Sandbox",
-        "start_date": "2021-05-07T00:00:00Z",
-    }
+from airbyte_cdk.sources.declarative.yaml_declarative_source import YamlDeclarativeSource
+from airbyte_cdk.test.catalog_builder import CatalogBuilder
+from airbyte_cdk.test.state_builder import StateBuilder
 
 
-@fixture
-def test_full_refresh_config():
-    return {"base_url": "test_base_url"}
+pytest_plugins = ["airbyte_cdk.test.utils.manifest_only_fixtures"]
+
+TEST_CONFIG = {
+    "credentials": {
+        "auth_type": "Api Key",
+        "api_key": "test-api-key",
+    },
+    "environment": "Sandbox",
+    "start_date": "2024-01-01T00:00:00Z",
+}
 
 
-@fixture
-def test_incremental_config():
-    return {"base_url": "test_base_url", "start_date": "2020-01-01T00:00:00Z"}
+def _get_manifest_path() -> Path:
+    source_declarative_manifest_path = Path("/airbyte/integration_code/source_declarative_manifest")
+    if source_declarative_manifest_path.exists():
+        return source_declarative_manifest_path
+    return Path(__file__).parent.parent
 
 
-@fixture
-def test_opportunity_record():
-    return {
-        "id": "test_id",
-        "name": "test_name",
-        "contact": "test_contact",
-        "headline": "test_headline",
-        "stage": "test_stage",
-        "confidentiality": "non-confidential",
-        "location": "test_location",
-        "phones": [{"type": "test_mobile", "value": "test_value"}],
-        "emails": ["test_emails"],
-        "links": ["test_link_1", "test_link_2"],
-        "archived": {"reason": "test_reason", "archivedAt": 1628513942512},
-        "tags": [],
-        "sources": ["test_source_1"],
-        "stageChanges": [{"toStageId": "test_lead-new", "toStageIndex": 0, "updatedAt": 1628509001183, "userId": "test_userId"}],
-        "origin": "test_origin",
-        "sourcedBy": "test_sourcedBy",
-        "owner": "test_owner",
-        "followers": ["test_follower"],
-        "applications": ["test_application"],
-        "createdAt": 1738509001183,
-        "updatedAt": 1738542849132,
-        "lastInteractionAt": 1738513942512,
-        "lastAdvancedAt": 1738513942512,
-        "snoozedUntil": None,
-        "urls": {"list": "https://hire.sandbox.lever.co/candidates", "show": "https://hire.sandbox.lever.co/candidates/test_show"},
-        "isAnonymized": False,
-        "dataProtection": None,
-    }
+_SOURCE_FOLDER_PATH = _get_manifest_path()
+_YAML_FILE_PATH = _SOURCE_FOLDER_PATH / "manifest.yaml"
+sys.path.append(str(_SOURCE_FOLDER_PATH))
+
+
+def get_source(config, state=None) -> YamlDeclarativeSource:
+    catalog = CatalogBuilder().build()
+    state = StateBuilder().build() if not state else state
+    return YamlDeclarativeSource(path_to_yaml=str(_YAML_FILE_PATH), catalog=catalog, config=config, state=state)

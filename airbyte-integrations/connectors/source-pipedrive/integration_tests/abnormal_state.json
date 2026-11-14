@@ -1,23 +1,112 @@
-{
-  "deals": {
-    "update_time": "2217-06-26T21:20:07Z"
+[
+  {
+    "type": "STREAM",
+    "stream": {
+      "stream_state": {
+        "update_time": "2217-06-26T21:20:07Z"
+      },
+      "stream_descriptor": {
+        "name": "deals"
+      }
+    }
   },
-  "activities": {
-    "update_time": "2217-06-26T21:20:07Z"
+  {
+    "type": "STREAM",
+    "stream": {
+      "stream_state": {
+        "update_time": "2217-06-26 21:20:07"
+      },
+      "stream_descriptor": {
+        "name": "files"
+      }
+    }
   },
-  "persons": {
-    "update_time": "2217-06-26T21:20:07Z"
+  {
+    "type": "STREAM",
+    "stream": {
+      "stream_state": {
+        "update_time": "2217-06-26T21:20:07Z"
+      },
+      "stream_descriptor": {
+        "name": "notes"
+      }
+    }
   },
-  "pipelines": {
-    "update_time": "2217-06-26T21:20:07Z"
+  {
+    "type": "STREAM",
+    "stream": {
+      "stream_state": {
+        "update_time": "2217-06-26T21:20:07Z"
+      },
+      "stream_descriptor": {
+        "name": "activities"
+      }
+    }
   },
-  "stages": {
-    "update_time": "2217-06-26T21:20:07Z"
+  {
+    "type": "STREAM",
+    "stream": {
+      "stream_state": {
+        "update_time": "2217-06-26T21:20:07Z"
+      },
+      "stream_descriptor": {
+        "name": "persons"
+      }
+    }
   },
-  "users": {
-    "modified": "2217-06-26T21:20:07Z"
+  {
+    "type": "STREAM",
+    "stream": {
+      "stream_state": {
+        "update_time": "2217-06-26T21:20:07Z"
+      },
+      "stream_descriptor": {
+        "name": "products"
+      }
+    }
   },
-  "organizations": {
-    "update_time": "2217-06-26T21:20:07Z"
+  {
+    "type": "STREAM",
+    "stream": {
+      "stream_state": {
+        "update_time": "2217-06-26T21:20:07Z"
+      },
+      "stream_descriptor": {
+        "name": "organizations"
+      }
+    }
+  },
+  {
+    "type": "STREAM",
+    "stream": {
+      "stream_state": {
+        "log_time": "2217-06-26 21:20:07"
+      },
+      "stream_descriptor": {
+        "name": "deal_flow"
+      }
+    }
+  },
+  {
+    "type": "STREAM",
+    "stream": {
+      "stream_state": {
+        "update_time": "2217-06-26T21:20:07Z"
+      },
+      "stream_descriptor": {
+        "name": "deals_archived"
+      }
+    }
+  },
+  {
+    "type": "STREAM",
+    "stream": {
+      "stream_state": {
+        "update_time": "2217-06-26T21:20:07Z"
+      },
+      "stream_descriptor": {
+        "name": "leads"
+      }
+    }
   }
-}
+]

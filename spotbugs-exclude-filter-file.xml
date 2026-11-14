@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter
+  xmlns="https://github.com/spotbugs/filter/3.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="https://github.com/spotbugs/filter/3.0.0 https://raw.githubusercontent.com/spotbugs/spotbugs/3.1.0/spotbugs/etc/findbugsfilter.xsd">
+
+  <!-- examples: https://spotbugs.readthedocs.io/en/stable/filter.html#complete-example -->
+  <Match>
+    <Source name="~.*build/generated.*" />
+  </Match>
+  <Match>
+    <Package name="io.airbyte.workers.general.jmh_generated.*" />
+  </Match>
+  <Match>
+    <Package name="io.airbyte.api.client.*" />
+  </Match>
+  <!-- Suppress warning about use if InputStream#readObject. The usage is safe because it is not from an untrusted source. -->
+  <Match>
+    <Class name="io.airbyte.cdk.integrations.debezium.internals.AirbyteFileOffsetBackingStore" />
+    <Bug code="SECOBDES" />
+  </Match>
+  <Match>
+    <Package name="io.airbyte.cdk.load.util.*" />
+  </Match>
+  <!-- Kotlin 2.4 (K2) code generation artefacts in compiler-synthesised coroutine classes. -->
+  <!-- A suspend lambda taking a value-class parameter (e.g. kotlin.Result) unboxes it inside its
+       generated create(Object, Continuation), whose parameter carries the lambda's Any? signature. -->
+  <Match>
+    <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE" />
+    <Method name="create" params="java.lang.Object,kotlin.coroutines.Continuation" returns="kotlin.coroutines.Continuation" />
+  </Match>
+  <!-- Inlined Flow operators (filter/map/...) get a nested collector class whose state machine
+       passes the not-yet-assigned collector slot on the first resume path. -->
+  <Match>
+    <Bug pattern="NP_NONNULL_PARAM_VIOLATION" />
+    <Class name="~.*\$\$inlined\$.*" />
+  </Match>
+</FindBugsFilter>

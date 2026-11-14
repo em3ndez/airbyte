@@ -1,0 +1,65 @@
+data:
+  ab_internal:
+    ql: 200
+    sl: 100
+  registryOverrides:
+    oss:
+      enabled: true
+    cloud:
+      enabled: true
+  remoteRegistries:
+    pypi:
+      enabled: false
+      packageName: airbyte-source-okta
+  connectorBuildOptions:
+    baseImage: docker.io/airbyte/source-declarative-manifest:7.47.0@sha256:b2ecb78040d4c4b42fa3537488d68a3b195f64b5fefcbc48ac0591479591a3f0
+  connectorSubtype: api
+  connectorType: source
+  definitionId: 1d4fdb25-64fc-4569-92da-fcdca79a8372
+  dockerImageTag: 0.4.0
+  dockerRepository: airbyte/source-okta
+  githubIssueLabel: source-okta
+  icon: icon.svg
+  license: ELv2
+  name: Okta
+  releaseStage: alpha
+  supportLevel: community
+  documentationUrl: https://docs.airbyte.com/integrations/sources/okta
+  tags:
+    - language:manifest-only
+    - cdk:low-code
+  connectorTestSuitesOptions:
+    - suite: liveTests
+      testConnections:
+        - name: okta_config_dev_null
+          id: 64578038-37df-4bc4-9181-b202a3cc20b9
+    - suite: unitTests
+    - suite: acceptanceTests
+      testSecrets:
+        - name: SECRET_SOURCE-OKTA__CREDS
+          fileName: config.json
+          secretStore:
+            type: GSM
+            alias: airbyte-connector-testing-secret-store
+  externalDocumentationUrls:
+    - title: Okta API reference
+      url: https://developer.okta.com/docs/reference/
+      type: api_reference
+    - title: Okta authentication
+      url: https://developer.okta.com/docs/guides/implement-oauth-for-okta/main/
+      type: authentication_guide
+    - title: Okta rate limits
+      url: https://developer.okta.com/docs/reference/rate-limits/
+      type: rate_limits
+    - title: Okta Status
+      url: https://status.okta.com/
+      type: status_page
+  releases:
+    rolloutConfiguration:
+      defaultRolloutMode: autopilot
+      autopilotConfig:
+        autoStart: true
+        autoPromoteStages: true
+        strategy: fast
+      enableProgressiveRollout: true
+metadataSpecVersion: "1.0"

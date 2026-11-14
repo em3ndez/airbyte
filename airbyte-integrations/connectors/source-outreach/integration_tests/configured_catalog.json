@@ -1,0 +1,379 @@
+{
+  "streams": [
+    {
+      "cursor_field": null,
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "prospects",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "full_refresh"
+    },
+    {
+      "cursor_field": null,
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "sequences",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "full_refresh"
+    },
+    {
+      "cursor_field": null,
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "sequence_states",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "full_refresh"
+    },
+    {
+      "cursor_field": null,
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "sequence_steps",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "full_refresh"
+    },
+    {
+      "cursor_field": null,
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "accounts",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "full_refresh"
+    },
+    {
+      "cursor_field": null,
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "opportunities",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "full_refresh"
+    },
+    {
+      "cursor_field": null,
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "personas",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "full_refresh"
+    },
+    {
+      "cursor_field": null,
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "mailings",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "full_refresh"
+    },
+    {
+      "cursor_field": null,
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "mailboxes",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "full_refresh"
+    },
+    {
+      "cursor_field": null,
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "stages",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "full_refresh"
+    },
+    {
+      "cursor_field": null,
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "calls",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "full_refresh"
+    },
+    {
+      "cursor_field": null,
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "call_purposes",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "full_refresh"
+    },
+    {
+      "cursor_field": null,
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "call_dispositions",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "full_refresh"
+    },
+    {
+      "cursor_field": null,
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "users",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "full_refresh"
+    },
+    {
+      "cursor_field": null,
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "tasks",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "full_refresh"
+    },
+    {
+      "cursor_field": null,
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "templates",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "full_refresh"
+    },
+    {
+      "cursor_field": null,
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "snippets",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "full_refresh"
+    },
+    {
+      "cursor_field": ["createdAt"],
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["createdAt"],
+        "json_schema": {},
+        "name": "events",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "incremental"
+    },
+    {
+      "cursor_field": ["updatedAt"],
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "teams",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "incremental"
+    },
+    {
+      "cursor_field": ["updatedAt"],
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "roles",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "incremental"
+    },
+    {
+      "cursor_field": ["updatedAt"],
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "profiles",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "incremental"
+    },
+    {
+      "cursor_field": [],
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": [],
+        "json_schema": {},
+        "name": "duties",
+        "namespace": null,
+        "source_defined_cursor": false,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh"]
+      },
+      "sync_mode": "full_refresh"
+    },
+    {
+      "cursor_field": ["updatedAt"],
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "rulesets",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "incremental"
+    },
+    {
+      "cursor_field": ["updatedAt"],
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "favorites",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "incremental"
+    },
+    {
+      "cursor_field": ["updatedAt"],
+      "destination_sync_mode": "append",
+      "primary_key": null,
+      "stream": {
+        "default_cursor_field": ["updatedAt"],
+        "json_schema": {},
+        "name": "mail_aliases",
+        "namespace": null,
+        "source_defined_cursor": true,
+        "source_defined_primary_key": [["id"]],
+        "supported_sync_modes": ["full_refresh", "incremental"]
+      },
+      "sync_mode": "incremental"
+    }
+  ]
+}

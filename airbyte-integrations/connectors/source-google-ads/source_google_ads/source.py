@@ -1,79 +1,40 @@
 #
-# Copyright (c) 2021 Airbyte, Inc., all rights reserved.
+# Copyright (c) 2025 Airbyte, Inc., all rights reserved.
 #
 
 
-from typing import Any, List, Mapping, Tuple
+from typing import Any, Iterable, List, Mapping, MutableMapping, Optional
 
-from airbyte_cdk import AirbyteLogger
-from airbyte_cdk.models import SyncMode
-from airbyte_cdk.sources import AbstractSource
+from airbyte_cdk.models import ConfiguredAirbyteCatalog, SyncMode
+from airbyte_cdk.sources.declarative.yaml_declarative_source import YamlDeclarativeSource
+from airbyte_cdk.sources.source import TState
 from airbyte_cdk.sources.streams import Stream
-from google.ads.googleads.errors import GoogleAdsException
 
-from .custom_query_stream import CustomQuery
 from .google_ads import GoogleAds
+from .models import CustomerModel
 from .streams import (
-    AccountPerformanceReport,
-    Accounts,
-    AdGroupAdReport,
-    AdGroupAds,
-    AdGroups,
-    Campaigns,
-    ClickView,
-    DisplayKeywordPerformanceReport,
-    DisplayTopicsPerformanceReport,
-    ShoppingPerformanceReport,
-    UserLocationReport,
+    CustomerClient,
 )
 
 
-class SourceGoogleAds(AbstractSource):
-    def get_credentials(self, config: Mapping[str, Any]) -> Mapping[str, Any]:
-        credentials = config["credentials"]
+class SourceGoogleAds(YamlDeclarativeSource):
+    def __init__(self, catalog: Optional[ConfiguredAirbyteCatalog], config: Optional[Mapping[str, Any]], state: TState, **kwargs):
+        super().__init__(catalog=catalog, config=config, state=state, **{"path_to_yaml": "manifest.yaml"})
 
-        # https://developers.google.com/google-ads/api/docs/concepts/call-structure#cid
-        if "login_customer_id" in config and config["login_customer_id"].strip():
-            credentials["login_customer_id"] = config["login_customer_id"]
-        return credentials
+    # Raise exceptions on missing streams
+    raise_exception_on_missing_stream = True
 
-    def check_connection(self, logger: AirbyteLogger, config: Mapping[str, Any]) -> Tuple[bool, any]:
-        try:
-            logger.info("Checking the config")
-            google_api = GoogleAds(credentials=self.get_credentials(config), customer_id=config["customer_id"])
-            account_stream = Accounts(api=google_api)
-            list(account_stream.read_records(sync_mode=SyncMode.full_refresh))
-            # Check custom query request validity by sending metric request with non-existant time window
-            for q in config.get("custom_queries", []):
-                q = q.get("query")
-                if CustomQuery.cursor_field in q:
-                    raise Exception(f"Custom query should not contain {CustomQuery.cursor_field}")
-                req_q = CustomQuery.insert_segments_date_expr(q, "1980-01-01", "1980-01-01")
-                google_api.send_request(req_q)
-            return True, None
-        except GoogleAdsException as error:
-            return False, f"Unable to connect to Google Ads API with the provided credentials - {repr(error.failure)}"
+    @staticmethod
+    def _validate_and_transform(config: Mapping[str, Any]):
+        if config.get("end_date") == "":
+            config.pop("end_date")
+        if "customer_id" in config:
+            config["customer_ids"] = config["customer_id"].split(",")
+            config.pop("customer_id")
+
+        return config
 
     def streams(self, config: Mapping[str, Any]) -> List[Stream]:
-        google_api = GoogleAds(credentials=self.get_credentials(config), customer_id=config["customer_id"])
-        incremental_stream_config = dict(
-            api=google_api, conversion_window_days=config["conversion_window_days"], start_date=config["start_date"]
-        )
-
-        custom_query_streams = [
-            CustomQuery(custom_query_config=single_query_config, **incremental_stream_config)
-            for single_query_config in config.get("custom_queries", [])
-        ]
-        return [
-            UserLocationReport(**incremental_stream_config),
-            AccountPerformanceReport(**incremental_stream_config),
-            DisplayTopicsPerformanceReport(**incremental_stream_config),
-            DisplayKeywordPerformanceReport(**incremental_stream_config),
-            ShoppingPerformanceReport(**incremental_stream_config),
-            AdGroupAdReport(**incremental_stream_config),
-            AdGroupAds(api=google_api),
-            AdGroups(api=google_api),
-            Accounts(api=google_api),
-            Campaigns(api=google_api),
-            ClickView(**incremental_stream_config),
-        ] + custom_query_streams
+        config = self._validate_and_transform(config)
+        streams = super().streams(config=config)
+        return streams

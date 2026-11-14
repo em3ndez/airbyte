@@ -1,0 +1,9 @@
+[
+  {
+    "type": "STREAM",
+    "stream": {
+      "stream_state": { "started_at": "1762128000" },
+      "stream_descriptor": { "name": "calls" }
+    }
+  }
+]

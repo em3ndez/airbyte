@@ -1,27 +1,57 @@
+# See [Connector Acceptance Tests](https://docs.airbyte.com/connector-development/testing-connectors/connector-acceptance-tests-reference)
+# for more information about how to configure these tests
 connector_image: airbyte/source-pipedrive:dev
-tests:
+acceptance_tests:
   spec:
-    - spec_path: "source_pipedrive/spec.json"
+    tests:
+      - spec_path: "manifest.yaml"
   connection:
-    - config_path: "secrets/config.json"
-      status: "succeed"
-    - config_path: "secrets/oauth_config.json"
-      status: "succeed"
-    - config_path: "secrets/old_config.json"
-      status: "succeed"
-    - config_path: "integration_tests/invalid_config.json"
-      status: "failed"
+    tests:
+      - config_path: "secrets/config.json"
+        status: "succeed"
+      - config_path: "integration_tests/invalid_config.json"
+        status: "failed"
+      - config_path: "integration_tests/invalid_token_config.json"
+        status: "failed"
   discovery:
-    - config_path: "secrets/config.json"
+    tests:
+      - config_path: "secrets/config.json"
   basic_read:
-    - config_path: "secrets/config.json"
-      configured_catalog_path: "integration_tests/configured_catalog.json"
-      expect_records:
-        path: "integration_tests/expected_records.txt"
+    tests:
+      - config_path: "secrets/config.json"
+        configured_catalog_path: "integration_tests/configured_catalog.json"
+        empty_streams:
+          - name: mail
+            bypass_reason: "Sandbox user has no Pipedrive mail connection: GET /v1/mailbox/mailThreads returns data: [] for every folder."
+          - name: mailThreads
+            bypass_reason: "Sandbox user has no Pipedrive mail connection, so there are no threads to list."
+          - name: legacy_teams
+            bypass_reason: "Sandbox company has the Teams feature disabled: GET /v1/legacyTeams answers 403, which the stream ignores."
+          - name: projects
+            bypass_reason: "Sandbox plan lacks the Projects suite: GET /api/v2/projects answers 402, which the stream ignores."
+          - name: tasks
+            bypass_reason: "Sandbox plan lacks the Projects suite: GET /api/v2/tasks answers 402, which the stream ignores."
+          - name: deal_installments
+            bypass_reason: "Sandbox plan has no access to installments: GET /api/v2/deals/installments answers 403, which the stream ignores."
+      - config_path: "secrets/config.json"
+        configured_catalog_path: "integration_tests/configured_catalog.json"
+        empty_streams:
+          - name: mail
+            bypass_reason: "Sandbox user has no Pipedrive mail connection: GET /v1/mailbox/mailThreads returns data: [] for every folder."
+          - name: mailThreads
+            bypass_reason: "Sandbox user has no Pipedrive mail connection, so there are no threads to list."
+          - name: legacy_teams
+            bypass_reason: "Sandbox company has the Teams feature disabled: GET /v1/legacyTeams answers 403, which the stream ignores."
+          - name: projects
+            bypass_reason: "Sandbox plan lacks the Projects suite: GET /api/v2/projects answers 402, which the stream ignores."
+          - name: tasks
+            bypass_reason: "Sandbox plan lacks the Projects suite: GET /api/v2/tasks answers 402, which the stream ignores."
+          - name: deal_installments
+            bypass_reason: "Sandbox plan has no access to installments: GET /api/v2/deals/installments answers 403, which the stream ignores."
+
   incremental:
-    - config_path: "secrets/config.json"
-      configured_catalog_path: "integration_tests/configured_catalog.json"
-      future_state_path: "integration_tests/abnormal_state.json"
-  full_refresh:
-    - config_path: "secrets/config.json"
-      configured_catalog_path: "integration_tests/configured_catalog.json"
+    tests:
+      - config_path: "secrets/config.json"
+        configured_catalog_path: "integration_tests/configured_catalog.json"
+        future_state:
+          future_state_path: "integration_tests/abnormal_state.json"

@@ -1,0 +1,49 @@
+data:
+  ab_internal:
+    ql: 300
+    sl: 100
+  allowedHosts:
+    hosts: []
+  connectorBuildOptions:
+    baseImage: docker.io/airbyte/python-connector-base:4.1.1@sha256:a268b44c733ae699a60f5fbc06a324945dba98945c6e2ab7f8609f2f895b0d28
+  connectorSubtype: api
+  connectorType: source
+  definitionId: 084124ab-22db-4019-b36d-630418541bf7
+  dockerImageTag: 0.0.49
+  dockerRepository: airbyte/source-hardcoded-records
+  documentationUrl: https://docs.airbyte.com/integrations/sources/hardcoded-records
+  githubIssueLabel: source-hardcoded-records
+  icon: faker.svg
+  license: ELv2
+  name: Hardcoded Records
+  registryOverrides:
+    cloud:
+      enabled: true
+    oss:
+      enabled: true
+  releaseStage: beta
+  remoteRegistries:
+    pypi:
+      enabled: true
+      packageName: airbyte-source-hardcoded-records
+  suggestedStreams:
+    streams:
+      - countries
+      - orders
+  supportLevel: community
+  tags:
+    - language:python
+    - cdk:python
+  connectorTestSuitesOptions:
+    - suite: integrationTests
+      testSecrets:
+        - name: SECRET_SOURCE-HARDCODED-RECORDS_CREDS
+          fileName: config.json
+          secretStore:
+            type: GSM
+            alias: airbyte-connector-testing-secret-store
+  externalDocumentationUrls:
+    - title: Hardcoded Records documentation
+      url: https://docs.airbyte.com/integrations/sources/hardcoded-records
+      type: other
+metadataSpecVersion: "1.0"

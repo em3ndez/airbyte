@@ -1,0 +1,46 @@
+data:
+  allowedHosts:
+    hosts:
+      - "https://s.jina.ai"
+      - "https://r.jina.ai"
+  registryOverrides:
+    oss:
+      enabled: true
+    cloud:
+      enabled: false
+  remoteRegistries:
+    pypi:
+      enabled: true
+      packageName: airbyte-source-jina-ai-reader
+  connectorBuildOptions:
+    baseImage: docker.io/airbyte/python-connector-base:4.1.1@sha256:a268b44c733ae699a60f5fbc06a324945dba98945c6e2ab7f8609f2f895b0d28
+  connectorSubtype: api
+  connectorType: source
+  definitionId: 47077a7f-7ab0-47ee-b428-650396a708c7
+  dockerImageTag: 0.1.41
+  dockerRepository: airbyte/source-jina-ai-reader
+  githubIssueLabel: source-jina-ai-reader
+  icon: jina-ai-reader.svg
+  license: ELv2
+  name: Jina AI Reader
+  releaseDate: 2024-06-17
+  releaseStage: alpha
+  supportLevel: community
+  documentationUrl: https://docs.airbyte.com/integrations/sources/jina-ai-reader
+  tags:
+    - language:python
+    - cdk:low-code
+  connectorTestSuitesOptions:
+    - suite: unitTests
+    - suite: acceptanceTests
+      testSecrets:
+        - name: SECRET_SOURCE-JINA-AI-READER__CREDS
+          fileName: config.json
+          secretStore:
+            type: GSM
+            alias: airbyte-connector-testing-secret-store
+  externalDocumentationUrls:
+    - title: Jina AI Reader API
+      url: https://jina.ai/reader/
+      type: api_reference
+metadataSpecVersion: "1.0"

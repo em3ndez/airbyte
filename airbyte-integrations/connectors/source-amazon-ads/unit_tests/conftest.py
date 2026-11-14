@@ -1,50 +1,30 @@
-#
-# Copyright (c) 2021 Airbyte, Inc., all rights reserved.
-#
+# Copyright (c) 2025 Airbyte, Inc., all rights reserved.
 
-from pytest import fixture
+import sys
+from pathlib import Path
 
-
-@fixture
-def test_config():
-    return {
-        "client_id": "test_client_id",
-        "client_secret": "test_client_secret",
-        "scope": "test_scope",
-        "refresh_token": "test_refresh",
-    }
+from airbyte_cdk.sources.declarative.yaml_declarative_source import YamlDeclarativeSource
+from airbyte_cdk.test.catalog_builder import CatalogBuilder
+from airbyte_cdk.test.state_builder import StateBuilder
 
 
-@fixture
-def profiles_response():
-    return """
-[{"profileId":3991703629696934,"countryCode":"CA","currencyCode":"CAD","dailyBudget":9.99999999E8,"timezone":"America/Los_Angeles","accountInfo":{"marketplaceStringId":"A2EUQ1WTGCTBG2","id":"A3LUQZ2NBMFGO4","type":"seller","name":"The Airbyte Store","validPaymentMethod":true}},{"profileId":2935840597082037,"countryCode":"CA","currencyCode":"CAD","timezone":"America/Los_Angeles","accountInfo":{"marketplaceStringId":"A2EUQ1WTGCTBG2","id":"ENTITY1T4PQ8E0Y1LVJ","type":"vendor","name":"test","validPaymentMethod":false}},{"profileId":3664951271230581,"countryCode":"MX","currencyCode":"MXN","dailyBudget":9.99999999E8,"timezone":"America/Los_Angeles","accountInfo":{"marketplaceStringId":"A1AM78C64UM0Y8","id":"A3LUQZ2NBMFGO4","type":"seller","name":"The Airbyte Store","validPaymentMethod":true}},{"profileId":3312910465837761,"countryCode":"US","currencyCode":"USD","dailyBudget":9.99999999E8,"timezone":"America/Los_Angeles","accountInfo":{"marketplaceStringId":"ATVPDKIKX0DER","id":"A3LUQZ2NBMFGO4","type":"seller","name":"The Airbyte Store","validPaymentMethod":true}}]
-"""
+pytest_plugins = ["airbyte_cdk.test.utils.manifest_only_fixtures"]
 
 
-@fixture
-def campaigns_response():
-    return """
-[{"campaignId":37387403419888,"name":"sswdd","tactic":"T00020","startDate":"20220101","state":"enabled","costType":"cpc","budget":3.0,"budgetType":"daily","deliveryProfile":"as_soon_as_possible"},{"campaignId":59249214322256,"name":"My test camp","tactic":"T00020","startDate":"20220101","state":"enabled","costType":"cpc","budget":3.0,"budgetType":"daily","deliveryProfile":"as_soon_as_possible"},{"campaignId":16117299922278,"name":"ssw","tactic":"T00020","startDate":"20220101","state":"enabled","costType":"cpc","budget":3.0,"budgetType":"daily","deliveryProfile":"as_soon_as_possible"},{"campaignId":202914386115504,"name":"ssdf","tactic":"T00020","startDate":"20220101","state":"enabled","costType":"cpc","budget":3.0,"budgetType":"daily","deliveryProfile":"as_soon_as_possible"}]
-"""
+def _get_manifest_path() -> Path:
+    source_declarative_manifest_path = Path("/airbyte/integration_code/source_declarative_manifest")
+    if source_declarative_manifest_path.exists():
+        return source_declarative_manifest_path
+    return Path(__file__).parent.parent
 
 
-@fixture
-def adgroups_response():
-    return """
-[{"name":"string","campaignId":0,"defaultBid":0,"bidOptimization":"clicks","state":"enabled","adGroupId":0,"tactic":"T00020"}]
-"""
+_SOURCE_FOLDER_PATH = _get_manifest_path()
+_YAML_FILE_PATH = _SOURCE_FOLDER_PATH / "manifest.yaml"
+
+sys.path.append(str(_SOURCE_FOLDER_PATH))  # to allow loading custom components
 
 
-@fixture
-def product_ads_response():
-    return """
-[{"state":"enabled","adId":0,"adGroupId":0,"campaignId":0,"asin":"string","sku":"string"}]
-"""
-
-
-@fixture
-def targeting_response():
-    return """
-[{"targetId":123,"adGroupId":321,"state":"enabled","expressionType":"manual","bid":1.5,"expression":{"type":"asinSameAs","value":"B0123456789"},"resolvedExpression":{"type":"views","values":{"type":"asinCategorySameAs","value":"B0123456789"}}}]
-"""
+def get_source(config, state=None) -> YamlDeclarativeSource:
+    catalog = CatalogBuilder().build()
+    state = StateBuilder().build() if not state else state
+    return YamlDeclarativeSource(path_to_yaml=str(_YAML_FILE_PATH), catalog=catalog, config=config, state=state)

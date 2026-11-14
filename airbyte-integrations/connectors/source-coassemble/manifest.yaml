@@ -1,0 +1,492 @@
+version: 5.7.3
+
+type: DeclarativeSource
+
+description: >-
+  Coassemble is an online training tool that connects people with the
+  information they need - anytime, anyplace.
+
+check:
+  type: CheckStream
+  stream_names:
+    - courses
+
+definitions:
+  streams:
+    courses:
+      type: DeclarativeStream
+      name: courses
+      primary_key:
+        - id
+      retriever:
+        type: SimpleRetriever
+        requester:
+          $ref: "#/definitions/base_requester"
+          path: /api/v1/headless/courses
+          http_method: GET
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path: []
+        paginator:
+          type: DefaultPaginator
+          page_token_option:
+            type: RequestOption
+            inject_into: request_parameter
+            field_name: page
+          page_size_option:
+            type: RequestOption
+            field_name: length
+            inject_into: request_parameter
+          pagination_strategy:
+            type: PageIncrement
+            page_size: 100
+            start_from_page: 0
+            inject_on_first_request: true
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          $ref: "#/schemas/courses"
+    trackings:
+      type: DeclarativeStream
+      name: trackings
+      retriever:
+        type: SimpleRetriever
+        requester:
+          $ref: "#/definitions/base_requester"
+          path: /api/v1/headless/trackings
+          http_method: GET
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path: []
+        paginator:
+          type: DefaultPaginator
+          page_token_option:
+            type: RequestOption
+            inject_into: request_parameter
+            field_name: page
+          page_size_option:
+            type: RequestOption
+            field_name: length
+            inject_into: request_parameter
+          pagination_strategy:
+            type: PageIncrement
+            page_size: 100
+            start_from_page: 0
+            inject_on_first_request: true
+        partition_router:
+          type: SubstreamPartitionRouter
+          parent_stream_configs:
+            - type: ParentStreamConfig
+              stream:
+                $ref: "#/definitions/streams/courses"
+              parent_key: id
+              partition_field: course_id
+              request_option:
+                type: RequestOption
+                inject_into: request_parameter
+                field_name: id
+      transformations:
+        - type: AddFields
+          fields:
+            - path:
+                - course_id
+              value: "{{ stream_partition.course_id }}"
+              value_type: integer
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          $ref: "#/schemas/trackings"
+  base_requester:
+    type: HttpRequester
+    url_base: https://api.coassemble.com
+    authenticator:
+      type: ApiKeyAuthenticator
+      api_token: 'COASSEMBLE:{{ config["workspace_id"] }}:{{ config["api_key"] }}'
+      inject_into:
+        type: RequestOption
+        field_name: Authorization
+        inject_into: header
+
+streams:
+  - $ref: "#/definitions/streams/courses"
+  - $ref: "#/definitions/streams/trackings"
+
+spec:
+  type: Spec
+  connection_specification:
+    type: object
+    $schema: http://json-schema.org/draft-07/schema#
+    required:
+      - workspace_id
+      - api_key
+    properties:
+      workspace_id:
+        type: string
+        order: 0
+        title: Workspace ID
+        description: >-
+          The ID of your Coassemble workspace. Shown next to your API key in
+          the Developer section of your workspace settings.
+      api_key:
+        type: string
+        order: 1
+        title: API Key
+        description: >-
+          Workspace API key generated in the Developer section of your
+          Coassemble workspace settings. Sent as
+          `Authorization: COASSEMBLE:<workspace_id>:<api_key>`.
+        airbyte_secret: true
+    additionalProperties: true
+
+metadata:
+  autoImportSchema:
+    courses: true
+    trackings: false
+  yamlComponents:
+    global:
+      - authenticator
+  testedStreams:
+    courses:
+      hasRecords: true
+      streamHash: e525c6075f62d30a2f08bf4f97fe3eada75513cd
+      hasResponse: true
+      primaryKeysAreUnique: true
+      primaryKeysArePresent: true
+      responsesAreSuccessful: true
+    trackings:
+      streamHash: null
+  assist:
+    docsUrl: https://developers.coassemble.com/
+
+schemas:
+  courses:
+    type: object
+    $schema: http://json-schema.org/schema#
+    additionalProperties: true
+    properties:
+      description:
+        type:
+          - string
+          - "null"
+      active:
+        type:
+          - boolean
+          - "null"
+      emails:
+        type:
+          - array
+          - "null"
+      finish:
+        anyOf:
+          - type: array
+          - type: object
+            properties:
+              description:
+                type: string
+              bg_colour:
+                type: "null"
+              button_label:
+                type: string
+              button_style:
+                type: string
+              confetti_style:
+                type: string
+              display_button:
+                type: boolean
+              display_confetti:
+                type: boolean
+              display_description:
+                type: boolean
+              display_feedback:
+                type: boolean
+              display_pattern:
+                type: boolean
+              display_title:
+                type: boolean
+              finish:
+                type: boolean
+              layout:
+                type: string
+              legacy:
+                type: boolean
+              link_type:
+                type: string
+              link_url:
+                type: string
+              mode:
+                type: string
+              overlay:
+                type: number
+              text_alignment:
+                type: string
+              title:
+                type: string
+              title_colour:
+                type: "null"
+      id:
+        type: number
+      identified:
+        type:
+          - boolean
+          - "null"
+      image:
+        type:
+          - string
+          - "null"
+      is_sharable:
+        type:
+          - boolean
+          - "null"
+      key:
+        type:
+          - string
+          - "null"
+      paid:
+        type:
+          - boolean
+          - "null"
+      private:
+        type:
+          - boolean
+          - "null"
+      screens:
+        type:
+          - array
+          - "null"
+        items:
+          type:
+            - object
+            - "null"
+          properties:
+            type:
+              type:
+                - object
+                - "null"
+              properties:
+                completable:
+                  type:
+                    - number
+                    - "null"
+                icon:
+                  type:
+                    - string
+                    - "null"
+                id:
+                  type:
+                    - number
+                    - "null"
+                name:
+                  type:
+                    - string
+                    - "null"
+                premium:
+                  type:
+                    - boolean
+                    - "null"
+                title:
+                  type:
+                    - string
+                    - "null"
+            description:
+              type:
+                - string
+                - "null"
+            asset:
+              type:
+                - string
+                - "null"
+            id:
+              type:
+                - number
+                - "null"
+            object:
+              type:
+                - object
+                - "null"
+              properties:
+                display_button:
+                  type:
+                    - boolean
+                    - "null"
+                display_description:
+                  type:
+                    - boolean
+                    - "null"
+                display_duration:
+                  type:
+                    - boolean
+                    - "null"
+                display_title:
+                  type:
+                    - boolean
+                    - "null"
+                drag_index:
+                  type:
+                    - number
+                    - "null"
+                layout:
+                  type:
+                    - string
+                    - "null"
+                legacy:
+                  type:
+                    - boolean
+                    - "null"
+                mode:
+                  type:
+                    - string
+                    - "null"
+                text_alignment:
+                  type:
+                    - string
+                    - "null"
+            passing_grade:
+              type:
+                - number
+                - "null"
+            questions:
+              type:
+                - array
+                - "null"
+            scored:
+              type:
+                - boolean
+                - "null"
+            sequence:
+              type:
+                - number
+                - "null"
+            title:
+              type:
+                - string
+                - "null"
+      start:
+        type:
+          - object
+          - "null"
+        properties:
+          button_label:
+            type:
+              - string
+              - "null"
+          button_style:
+            type:
+              - string
+              - "null"
+          display_button:
+            type:
+              - boolean
+              - "null"
+          display_description:
+            type:
+              - boolean
+              - "null"
+          display_duration:
+            type:
+              - boolean
+              - "null"
+          display_pattern:
+            type:
+              - boolean
+              - "null"
+          drag_index:
+            type:
+              - number
+              - "null"
+          finish:
+            type:
+              - boolean
+              - "null"
+          layout:
+            type:
+              - string
+              - "null"
+          legacy:
+            type:
+              - boolean
+              - "null"
+          link_type:
+            type:
+              - string
+              - "null"
+          mode:
+            type:
+              - string
+              - "null"
+          overlay:
+            type:
+              - number
+              - "null"
+          start:
+            type:
+              - boolean
+              - "null"
+          text_alignment:
+            type:
+              - string
+              - "null"
+          text_colour:
+            type:
+              - string
+              - "null"
+          title_size:
+            type:
+              - string
+              - "null"
+      theme:
+        anyOf:
+          - type: array
+          - type: object
+            properties:
+              colours:
+                type: object
+                properties:
+                  cover:
+                    type: object
+                    properties:
+                      background:
+                        type: string
+                      headings:
+                        type: string
+                      pattern:
+                        type: string
+                      primary:
+                        type: string
+                  standard:
+                    type: object
+                    properties:
+                      background:
+                        type: string
+                      headings:
+                        type: string
+                      primary:
+                        type: string
+              font:
+                type: string
+              logo:
+                type: array
+              preset:
+                type: string
+      thumbnail:
+        type:
+          - string
+          - "null"
+      title:
+        type:
+          - string
+          - "null"
+    required:
+      - id
+  trackings:
+    type: object
+    $schema: http://json-schema.org/draft-07/schema#
+    additionalProperties: true
+    properties:
+      course_id:
+        type:
+          - integer
+          - "null"

@@ -1,0 +1,6 @@
+bypass_reason: "Standard-test scenarios not configured: GSM holds a test config for this connector, but no acceptance-test entry lists it"
+acceptance_tests:
+  spec:
+    tests:
+      - spec_path: integration_tests/spec.json
+connector_image: airbyte/destination-snowflake-cortex:dev

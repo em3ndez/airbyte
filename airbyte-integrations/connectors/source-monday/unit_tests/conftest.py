@@ -1,13 +1,3 @@
-#
-# Copyright (c) 2021 Airbyte, Inc., all rights reserved.
-#
+# Copyright (c) 2025 Airbyte, Inc., all rights reserved.
 
-import json
-
-import pytest
-
-
-@pytest.fixture(scope="session", name="config")
-def config_fixture():
-    with open("secrets/config.json", "r") as config_file:
-        return json.load(config_file)
+pytest_plugins = ["airbyte_cdk.test.utils.manifest_only_fixtures"]

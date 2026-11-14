@@ -1,0 +1,19 @@
+# See [Connector Acceptance Tests](https://docs.airbyte.io/connector-development/testing-connectors/connector-acceptance-tests-reference)
+# for more information about how to configure these tests
+connector_image: airbyte/source-surveycto:dev
+acceptance_tests:
+  spec:
+    tests:
+      - spec_path: "source_surveycto/spec.yaml"
+  connection:
+    tests:
+      - config_path: "integration_tests/invalid_config.json"
+        status: "failed"
+  discovery:
+    bypass_reason: "The GSM sandbox config does not match the current spec (form_id must be an array), and acceptance tests are disabled in metadata.yaml"
+  basic_read:
+    bypass_reason: "The GSM sandbox config does not match the current spec (form_id must be an array), and acceptance tests are disabled in metadata.yaml"
+  full_refresh:
+    bypass_reason: "The GSM sandbox config does not match the current spec (form_id must be an array), and acceptance tests are disabled in metadata.yaml"
+  incremental:
+    bypass_reason: "The GSM sandbox config does not match the current spec (form_id must be an array), and acceptance tests are disabled in metadata.yaml"

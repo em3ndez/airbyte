@@ -1,0 +1,35 @@
+# See [Connector Acceptance Tests](https://docs.airbyte.com/connector-development/testing-connectors/connector-acceptance-tests-reference)
+# for more information about how to configure these tests
+connector_image: airbyte/source-opsgenie:dev
+acceptance_tests:
+  spec:
+    tests:
+      - spec_path: "manifest.yaml"
+  connection:
+    tests:
+      - config_path: "secrets/config.json"
+        status: "succeed"
+      - config_path: "integration_tests/invalid_config.json"
+        status: "failed"
+  discovery:
+    tests:
+      - config_path: "secrets/config.json"
+  basic_read:
+    tests:
+      - config_path: "secrets/config.json"
+        configured_catalog_path: "integration_tests/configured_catalog.json"
+        empty_streams:
+          - name: alerts
+            bypass_reason: "The test account returned no alerts from GET /v2/alerts on 2026-10-20; declared empty until test data is seeded."
+          - name: alert_logs
+            bypass_reason: "Substream of alerts, which the test account has none of (checked 2026-10-20)."
+          - name: alert_recipients
+            bypass_reason: "Substream of alerts, which the test account has none of (checked 2026-10-20)."
+          - name: incidents
+            bypass_reason: "The test account has no incidents; declared empty in the previous acceptance test config."
+          - name: services
+            bypass_reason: "The test account has no services; declared empty in the previous acceptance test config."
+  full_refresh:
+    tests:
+      - config_path: "secrets/config.json"
+        configured_catalog_path: "integration_tests/configured_catalog.json"

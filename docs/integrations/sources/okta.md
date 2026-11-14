@@ -1,67 +1,151 @@
 # Okta
 
-## Sync overview
+The Okta source connector syncs identity data (users, groups, roles, and system logs) from your [Okta](https://www.okta.com/) organization.
 
-This source can sync data for the [Okta API](https://developer.okta.com/docs/reference/). It supports both Full Refresh and Incremental syncs. You can choose if this connector will copy only the new or updated data, or all rows in the tables and columns you set up for replication, every time a sync is run.
+## Prerequisites
 
-### Output schema
+- An Okta organization and its domain. If your Okta URL is `https://MY_DOMAIN.okta.com/`, then `MY_DOMAIN` is your Okta domain. See [Find your Okta domain](https://developer.okta.com/docs/guides/find-your-domain/main/).
+- Credentials for one of the three supported authentication methods (see below). The credentials must belong to an administrator with permission to read the resources you want to sync. API tokens inherit the privilege level of the admin who creates them.
 
-This Source is capable of syncing the following core Streams:
+## Setup guide
 
-* [Users](https://developer.okta.com/docs/reference/api/users/#list-users)
-* [Groups](https://developer.okta.com/docs/reference/api/groups/#list-groups)
-* [System Log](https://developer.okta.com/docs/reference/api/system-log/#get-started)
+### Step 1: Set up authentication in Okta
 
-### Data type mapping
+The connector offers three authentication methods on both Airbyte Cloud and Airbyte Open Source. Use **API Token**, **OAuth2.0**, or **OAuth 2.0 with private key**.
 
-| Integration Type | Airbyte Type | Notes |
-| :--- | :--- | :--- |
-| `string` | `string` |  |
-| `number` | `number` |  |
-| `array` | `array` |  |
-| `object` | `object` |  |
+#### API Token
 
-### Features
+Create an API token (SSWS token) in the Okta Admin Console under **Security > API > Tokens**. Record the token value when Okta displays it; you can't view it again later. See [Create an API token](https://developer.okta.com/docs/guides/create-an-api-token/main/).
 
-| Feature | Supported?\(Yes/No\) | Notes |
-| :--- | :--- | :--- |
-| Full Refresh Sync | Yes |  |
-| Incremental Sync | Yes |  |
-| Namespaces | No |  |
+Okta API tokens expire after 30 days of inactivity. If you restrict API calls to a network zone, make sure requests from Airbyte are allowed.
 
-### Performance considerations
+#### OAuth 2.0
 
-The connector is restricted by normal Okta [requests limitation](https://developer.okta.com/docs/reference/rate-limits/).
+This is the **OAuth2.0** option in the Airbyte UI. You need the **Client ID**, **Client Secret**, and a **Refresh Token** from an Okta OAuth 2.0 app integration with the [**Refresh Token** grant type enabled](https://developer.okta.com/docs/guides/refresh-tokens/main/). The connector uses the refresh token to obtain new access tokens when they expire.
 
-## Getting started
+The connector authenticates to Okta's token endpoint (`https://{domain}.okta.com/oauth2/v1/token`) with the client ID and secret. If Okta rotates the refresh token, the connector saves the new refresh token to the source configuration automatically.
 
-### Requirements
+If Okta rejects the client credentials, refresh grant, or the request's network, the sync fails with a configuration error naming the field to fix.
 
-* Okta API Token 
+#### OAuth 2.0 with private key
 
-### Setup guide
+Create an [API service app](https://developer.okta.com/docs/guides/implement-oauth-for-okta-serviceapp/main/) in your Okta org, register the public JSON Web Key (JWK) that corresponds to your PEM private key, and grant the app the [OAuth 2.0 scopes](https://developer.okta.com/docs/api/oauth2) for the resources you plan to sync (for example, `okta.users.read`, `okta.groups.read`, `okta.roles.read`, and `okta.logs.read`). You need:
 
-In order to pull data out of your Okta instance, you need to create an [API Token](https://developer.okta.com/docs/guides/create-an-api-token/overview/).
+- **Client ID**: the service app's client ID.
+- **Key ID**: the `kid` of the registered JWK.
+- **Private key**: the corresponding private key in PEM format. You can paste it with real line breaks or with escaped `\n` sequences.
+- **Scope**: the granted scopes, separated by spaces.
 
-{% hint style="info" %}
-Different Okta APIs require different admin privilege levels. API tokens inherit the privilege level of the admin account used to create them
-{% endhint %}
+The connector doesn't send Demonstrating Proof of Possession (DPoP) proofs. If the service app requires DPoP, turn off that requirement in the app's settings, or the token request fails with an `invalid_dpop_proof` error.
 
-1. Sign in to your Okta organization as a user with [administrator privileges](https://help.okta.com/en/prod/okta_help_CSH.htm#ext_Security_Administrators)
-2. Access the API page: In the Admin Console, select API from the Security menu and then select the Tokens tab.
-3. Click Create Token.
-4. Name your token and click Create Token.
-5. Record the token value. This is the only opportunity to see it and record it.
-6. In Airbyte, create a Okta source.
-7. You can now pull data from your Okta instance!
+### Step 2: Set up the Okta source in Airbyte
+
+1. Log in to your Airbyte Cloud or Airbyte Open Source account.
+2. In the left navigation bar, click **Sources**. In the top-right corner, click **+ new source**.
+3. On the source setup page, select **Okta** from the Source type dropdown and enter a name for the connector.
+4. Enter your **Okta domain**. Enter only the domain part: if your Okta URL is `https://MY_DOMAIN.okta.com/`, enter `MY_DOMAIN`. The connector always calls `https://{domain}.okta.com`, so if your org uses a custom domain, enter its underlying `okta.com` subdomain rather than the custom hostname. Orgs reachable only on other Okta hosts (such as `okta-emea.com` or `oktapreview.com`) aren't supported.
+5. Enter a **Start Date** in the format `YYYY-MM-DDTHH:MM:SSZ`. Data before this date isn't replicated. If you leave this field empty, the connector syncs data from the last 7 days only.
+6. Choose an authentication method and fill in its fields:
+   - **API Token**: enter your **Personal API Token**.
+   - **OAuth2.0**: enter your **Client ID**, **Client Secret**, and **Refresh Token**.
+   - **OAuth 2.0 with private key**: enter your **Client ID**, **Key ID**, **Private key**, and **Scope**.
+7. Click **Set up source**.
+
+## Supported sync modes
+
+The Okta source connector supports the following [sync modes](https://docs.airbyte.com/cloud/core-concepts#connection-sync-modes):
+
+- Full Refresh
+- Incremental
+
+## Supported streams
+
+| Stream | Incremental | Notes |
+| :----- | :---------- | :---- |
+| [Users](https://developer.okta.com/docs/reference/api/users/#list-users) | Yes | Cursor: `lastUpdated` |
+| [User Role Assignments](https://developer.okta.com/docs/reference/api/roles/#list-roles-assigned-to-a-user) | No | Roles assigned to each user |
+| [Groups](https://developer.okta.com/docs/reference/api/groups/#list-groups) | Yes | Cursor: `lastUpdated` |
+| [Group Members](https://developer.okta.com/docs/reference/api/groups/#list-group-members) | No | Members of each group |
+| [Group Role Assignments](https://developer.okta.com/docs/reference/api/roles/#list-roles-assigned-to-a-group) | No | Roles assigned to each group |
+| [System Log](https://developer.okta.com/docs/reference/api/system-log/#get-started) | Yes | Cursor: `published` |
+| [Custom Roles](https://developer.okta.com/docs/reference/api/roles/#list-roles) | No | |
+| [Permissions](https://developer.okta.com/docs/reference/api/roles/#list-permissions) | No | Permissions of each custom role |
+| [Resource Sets](https://developer.okta.com/docs/reference/api/roles/#list-resource-sets) | No | |
+
+## Performance considerations
+
+The connector is subject to standard Okta [rate limits](https://developer.okta.com/docs/reference/rate-limits/). Rate limits vary by endpoint and by your Okta subscription.
+
+## IP allow list
+
+If you use Airbyte Cloud and your organization restricts access to specific IPs, add the [Airbyte Cloud IP addresses](https://docs.airbyte.com/platform/operating-airbyte/ip-allowlist) to your allow list.
 
 ## Changelog
 
-| Version | Date | Pull Request | Subject |
-| :--- | :--- | :--- | :--- |
+<details>
+  <summary>Expand to review</summary>
+
+| Version | Date       | Pull Request                                             | Subject                                                                        |
+|:--------|:-----------|:---------------------------------------------------------|:-------------------------------------------------------------------------------|
+| 0.4.0 | 2026-11-11 | [91335](https://github.com/airbytehq/airbyte/pull/91335) | Migrate to manifest-only. Fix OAuth 2.0 (refresh token) authentication and save rotated refresh tokens. Fix private keys saved with escaped newlines. |
+| 0.3.29 | 2026-11-10 | [91662](https://github.com/airbytehq/airbyte/pull/91662) | Update dependencies |
+| 0.3.28 | 2026-11-04 | [90919](https://github.com/airbytehq/airbyte/pull/90919) | Raise minimum supported Python version to 3.11 |
+| 0.3.27 | 2026-11-03 | [90674](https://github.com/airbytehq/airbyte/pull/90674) | Update dependencies |
+| 0.3.26 | 2026-10-27 | [90029](https://github.com/airbytehq/airbyte/pull/90029) | Update dependencies |
+| 0.3.25 | 2026-10-20 | [78853](https://github.com/airbytehq/airbyte/pull/78853) | Update dependencies |
+| 0.3.24 | 2026-10-16 | [88958](https://github.com/airbytehq/airbyte/pull/88958) | Update to CDK v7 and base image 4.1.1 |
+| 0.3.23 | 2026-08-28 | [85169](https://github.com/airbytehq/airbyte/pull/85169) | Remove legacy main.py from poetry package includes to fix Docker image build |
+| 0.3.22 | 2026-08-27 | [85086](https://github.com/airbytehq/airbyte/pull/85086) | Support multiline input for private key |
+| 0.3.21 | 2025-02-25 | [54167](https://github.com/airbytehq/airbyte/pull/54167) | Remove stream_state interpolation |
+| 0.3.20 | 2025-02-01 | [52728](https://github.com/airbytehq/airbyte/pull/52728) | Update dependencies |
+| 0.3.19 | 2025-01-25 | [52469](https://github.com/airbytehq/airbyte/pull/52469) | Update dependencies |
+| 0.3.18 | 2025-01-18 | [51920](https://github.com/airbytehq/airbyte/pull/51920) | Update dependencies |
+| 0.3.17 | 2025-01-11 | [51170](https://github.com/airbytehq/airbyte/pull/51170) | Update dependencies |
+| 0.3.16 | 2025-01-04 | [50899](https://github.com/airbytehq/airbyte/pull/50899) | Update dependencies |
+| 0.3.15 | 2024-12-28 | [50670](https://github.com/airbytehq/airbyte/pull/50670) | Update dependencies |
+| 0.3.14 | 2024-12-21 | [50073](https://github.com/airbytehq/airbyte/pull/50073) | Update dependencies |
+| 0.3.13 | 2024-12-14 | [49264](https://github.com/airbytehq/airbyte/pull/49264) | Starting with this version, the Docker image is now rootless. Please note that this and future versions will not be compatible with Airbyte versions earlier than 0.64 |
+| 0.3.12 | 2024-12-12 | [49145](https://github.com/airbytehq/airbyte/pull/49145) | Update dependencies |
+| 0.3.11 | 2024-11-04 | [47900](https://github.com/airbytehq/airbyte/pull/47900) | Update dependencies |
+| 0.3.10 | 2024-10-28 | [47058](https://github.com/airbytehq/airbyte/pull/47058) | Update dependencies |
+| 0.3.9 | 2024-10-12 | [46804](https://github.com/airbytehq/airbyte/pull/46804) | Update dependencies |
+| 0.3.8 | 2024-10-05 | [46481](https://github.com/airbytehq/airbyte/pull/46481) | Update dependencies |
+| 0.3.7 | 2024-09-28 | [46148](https://github.com/airbytehq/airbyte/pull/46148) | Update dependencies |
+| 0.3.6 | 2024-09-21 | [45763](https://github.com/airbytehq/airbyte/pull/45763) | Update dependencies |
+| 0.3.5 | 2024-09-14 | [45543](https://github.com/airbytehq/airbyte/pull/45543) | Update dependencies |
+| 0.3.4 | 2024-09-07 | [45319](https://github.com/airbytehq/airbyte/pull/45319) | Update dependencies |
+| 0.3.3 | 2024-08-31 | [44977](https://github.com/airbytehq/airbyte/pull/44977) | Update dependencies |
+| 0.3.2 | 2024-08-24 | [44741](https://github.com/airbytehq/airbyte/pull/44741) | Update dependencies |
+| 0.3.1 | 2024-08-17 | [44332](https://github.com/airbytehq/airbyte/pull/44332) | Update dependencies |
+| 0.3.0 | 2024-08-13 | [43382](https://github.com/airbytehq/airbyte/pull/43382) | Support OAuth 2.0 with private key |
+| 0.2.11 | 2024-08-12 | [43820](https://github.com/airbytehq/airbyte/pull/43820) | Update dependencies |
+| 0.2.10 | 2024-08-10 | [43672](https://github.com/airbytehq/airbyte/pull/43672) | Update dependencies |
+| 0.2.9 | 2024-08-03 | [43279](https://github.com/airbytehq/airbyte/pull/43279) | Update dependencies |
+| 0.2.8 | 2024-07-27 | [42739](https://github.com/airbytehq/airbyte/pull/42739) | Update dependencies |
+| 0.2.7 | 2024-07-20 | [42284](https://github.com/airbytehq/airbyte/pull/42284) | Update dependencies |
+| 0.2.6 | 2024-07-13 | [41756](https://github.com/airbytehq/airbyte/pull/41756) | Update dependencies |
+| 0.2.5 | 2024-07-10 | [41269](https://github.com/airbytehq/airbyte/pull/41269) | Update dependencies |
+| 0.2.4 | 2024-07-06 | [40904](https://github.com/airbytehq/airbyte/pull/40904) | Update dependencies |
+| 0.2.3 | 2024-06-25 | [40316](https://github.com/airbytehq/airbyte/pull/40316) | Update dependencies |
+| 0.2.2 | 2024-06-22 | [40002](https://github.com/airbytehq/airbyte/pull/40002) | Update dependencies |
+| 0.2.1 | 2024-06-04 | [39016](https://github.com/airbytehq/airbyte/pull/39016) | [autopull] Upgrade base image to v1.2.1 |
+| 0.2.0 | 2024-05-16 | [36509](https://github.com/airbytehq/airbyte/pull/36509) | Migrate to Low Code |
+| 0.1.16 | 2023-07-07 | [20833](https://github.com/airbytehq/airbyte/pull/20833) | Fix infinite loop for GroupMembers stream |
+| 0.1.15 | 2023-06-20 | [27533](https://github.com/airbytehq/airbyte/pull/27533) | Fixed group member stream and resource sets stream pagination |
+| 0.1.14 | 2022-12-24 | [20877](https://github.com/airbytehq/airbyte/pull/20877) | Disabled OAuth2.0 authorization method |
+| 0.1.13 | 2022-08-12 | [14700](https://github.com/airbytehq/airbyte/pull/14700) | Add resource sets |
+| 0.1.12 | 2022-08-05 | [15050](https://github.com/airbytehq/airbyte/pull/15050) | Add parameter `start_date` for Logs stream |
+| 0.1.11 | 2022-08-03 | [14739](https://github.com/airbytehq/airbyte/pull/14739) | Add permissions for custom roles |
+| 0.1.10 | 2022-08-01 | [15179](https://github.com/airbytehq/airbyte/pull/15179) | Fix broken schemas for all streams |
+| 0.1.9 | 2022-07-25 | [15001](https://github.com/airbytehq/airbyte/pull/15001) | Return deprovisioned users |
+| 0.1.8 | 2022-07-19 | [14710](https://github.com/airbytehq/airbyte/pull/14710) | Implement OAuth2.0 authorization method |
+| 0.1.7 | 2022-07-13 | [14556](https://github.com/airbytehq/airbyte/pull/14556) | Add User_Role_Assignments and Group_Role_Assignments streams (full fetch only) |
+| 0.1.6 | 2022-07-11 | [14610](https://github.com/airbytehq/airbyte/pull/14610) | Add custom roles stream |
+| 0.1.5 | 2022-07-04 | [14380](https://github.com/airbytehq/airbyte/pull/14380) | Add Group_Members stream to okta source |
 | 0.1.4 | 2021-11-02 | [7584](https://github.com/airbytehq/airbyte/pull/7584) | Fix incremental params for log stream |
 | 0.1.3 | 2021-09-08 | [5905](https://github.com/airbytehq/airbyte/pull/5905) | Fix incremental stream defect |
-| 0.1.2 | 2021-07-01 | [4456](https://github.com/airbytehq/airbyte/pull/4456) | Bugfix infinite pagination in logs stream |
-| 0.1.1 | 2021-06-09 | [3937](https://github.com/airbytehq/airbyte/pull/3973) | Add `AIRBYTE_ENTRYPOINT` env variable for kubernetes support |
+| 0.1.2 | 2021-07-01 | [4456](https://github.com/airbytehq/airbyte/pull/4456) | Fix infinite pagination in logs stream |
+| 0.1.1 | 2021-06-09 | [3973](https://github.com/airbytehq/airbyte/pull/3973) | Add `AIRBYTE_ENTRYPOINT` env variable for kubernetes support |
 | 0.1.0 | 2021-05-30 | [3563](https://github.com/airbytehq/airbyte/pull/3563) | Initial Release |
 
+</details>
